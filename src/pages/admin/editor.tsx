@@ -228,7 +228,7 @@ export default function Editor() {
 
         if (res.ok) {
             const { filename } = await res.json()
-            insertText(`![] (./img/${filename})`)
+            insertText(`![](./img/${filename})`)
             setStatus('Image uploaded')
         } else {
             setStatus('Upload failed')

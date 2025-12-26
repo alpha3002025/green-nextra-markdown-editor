@@ -31,3 +31,14 @@ def hello():
 console.log("Inner");
 ```
 ~~~~
+
+
+
+
+## Verification
+![Vue Logo](https://vuejs.org/images/logo.png)
+
+
+# image
+## waymo ------ tsla
+![](./img/20251226-12-12-49-1.png)
