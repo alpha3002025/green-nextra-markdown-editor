@@ -60,6 +60,9 @@ export default function Editor() {
     const [isSidebarOpen, setSidebarOpen] = useState(true)
     const [toastMsg, setToastMsg] = useState('')
     const [toc, setToc] = useState<{ id: string, text: string, level: number }[]>([]);
+    const [viewMode, setViewMode] = useState<'source' | 'preview' | 'both'>('both')
+    const [tocWidth, setTocWidth] = useState(250);
+    const [isResizing, setIsResizing] = useState(false);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -106,6 +109,38 @@ export default function Editor() {
         });
         setToc(headers);
     }, [content]);
+
+    // Resizing Logic
+    const startResizing = useCallback((mouseDownEvent: React.MouseEvent) => {
+        mouseDownEvent.preventDefault();
+        setIsResizing(true);
+    }, []);
+
+    const stopResizing = useCallback(() => {
+        setIsResizing(false);
+    }, []);
+
+    const resize = useCallback(
+        (mouseMoveEvent: MouseEvent) => {
+            if (isResizing) {
+                // Calculate new width based on mouse position from the right edge of the viewport
+                const newWidth = document.body.clientWidth - mouseMoveEvent.clientX;
+                if (newWidth > 150 && newWidth < 600) { // Min and Max constraints
+                    setTocWidth(newWidth);
+                }
+            }
+        },
+        [isResizing]
+    );
+
+    useEffect(() => {
+        window.addEventListener("mousemove", resize);
+        window.addEventListener("mouseup", stopResizing);
+        return () => {
+            window.removeEventListener("mousemove", resize);
+            window.removeEventListener("mouseup", stopResizing);
+        };
+    }, [resize, stopResizing]);
 
     const fetchPosts = async () => {
         try {
@@ -340,6 +375,15 @@ export default function Editor() {
                     <div className={styles.topBarRight}>
                         {currentPost && (
                             <>
+                                <select
+                                    className={styles.viewModeSelect}
+                                    value={viewMode}
+                                    onChange={(e) => setViewMode(e.target.value as 'source' | 'preview' | 'both')}
+                                >
+                                    <option value="source">Source Mode</option>
+                                    <option value="preview">Preview Mode</option>
+                                    <option value="both">Both Mode</option>
+                                </select>
                                 <button className={styles.saveBtn} onClick={savePost}>
                                     <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                         <Save size={16} /> Save
@@ -390,7 +434,13 @@ export default function Editor() {
                 <div className={styles.workspace}>
                     {currentPost ? (
                         <>
-                            <div className={`${styles.pane} ${styles.editorPane}`}>
+                            <div
+                                className={`${styles.pane} ${styles.editorPane}`}
+                                style={{
+                                    display: viewMode === 'preview' ? 'none' : 'flex',
+                                    borderRight: viewMode === 'both' ? '1px solid #e9ecef' : 'none'
+                                }}
+                            >
                                 <textarea
                                     ref={textareaRef}
                                     className={styles.textarea}
@@ -399,7 +449,12 @@ export default function Editor() {
                                     placeholder="Start writing..."
                                 />
                             </div>
-                            <div className={`${styles.pane} ${styles.previewPane}`}>
+                            <div
+                                className={`${styles.pane} ${styles.previewPane}`}
+                                style={{
+                                    display: viewMode === 'source' ? 'none' : 'flex'
+                                }}
+                            >
                                 <div className={`${styles.previewContent} prose max-w-none`}>
                                     <ReactMarkdown
                                         remarkPlugins={[remarkGfm]}
@@ -410,21 +465,25 @@ export default function Editor() {
                                             return url
                                         }}
                                         components={{
+                                            pre: ({ children }: any) => <>{children}</>,
                                             code({ node, inline, className, children, ...props }: any) {
                                                 const match = /language-(\w+)/.exec(className || '')
                                                 const codeContent = String(children).replace(/\n$/, '')
-                                                return !inline && match ? (
-                                                    <CodeBlock language={match[1]} value={codeContent}>
-                                                        <SyntaxHighlighter
-                                                            style={vscDarkPlus}
-                                                            language={match[1]}
-                                                            PreTag="div"
-                                                            {...props}
-                                                        >
-                                                            {codeContent}
-                                                        </SyntaxHighlighter>
-                                                    </CodeBlock>
-                                                ) : (
+                                                if (!inline) {
+                                                    return (
+                                                        <CodeBlock language={match ? match[1] : 'text'} value={codeContent}>
+                                                            <SyntaxHighlighter
+                                                                style={vscDarkPlus}
+                                                                language={match ? match[1] : 'text'}
+                                                                PreTag="div"
+                                                                {...props}
+                                                            >
+                                                                {codeContent}
+                                                            </SyntaxHighlighter>
+                                                        </CodeBlock>
+                                                    )
+                                                }
+                                                return (
                                                     <code className={className} {...props}>
                                                         {children}
                                                     </code>
@@ -440,7 +499,8 @@ export default function Editor() {
                                 </div>
                             </div>
                             {/* TOC Sidebar */}
-                            <div className={styles.tocSidebar}>
+                            <div className={styles.tocSidebar} style={{ width: tocWidth }}>
+                                <div className={styles.resizer} onMouseDown={startResizing} />
                                 <div className={styles.tocHeader}>
                                     <List size={18} />
                                     <span>Outline</span>
