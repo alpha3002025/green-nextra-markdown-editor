@@ -337,6 +337,11 @@
     /* Hide language label on hover */
 }
 
+.codeBlockWrapper code {
+    background-color: transparent !important;
+    padding: 0 !important;
+}
+
 /* Toast */
 .toast {
     position: fixed;
@@ -479,4 +484,88 @@
     /* Slightly darker background on hover */
     border-color: #33a06f;
     color: #33a06f;
+}
+
+/* Live Mode Styles */
+.livePane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: #fff;
+}
+
+.liveEditorContainer {
+    flex: 1;
+    overflow-y: auto;
+    padding: 2rem;
+}
+
+.liveEditor {
+    font-family: "Fira Code", "Fira Mono", monospace;
+    font-size: 16px;
+    line-height: 1.6;
+    min-height: 100%;
+}
+
+.liveEditorTextarea {
+    outline: none;
+}
+
+/* Prism Token Styles for "Styled Editor" feel */
+.liveEditor :global(.token.title.h1) {
+    font-size: 2em;
+    font-weight: bold;
+    color: #333;
+    display: block;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid #eaeaea;
+    margin-top: 1em;
+}
+
+.liveEditor :global(.token.title.h2) {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #444;
+    display: block;
+    margin-top: 1em;
+}
+
+.liveEditor :global(.token.title.h3) {
+    font-size: 1.25em;
+    font-weight: bold;
+    color: #555;
+    display: block;
+    margin-top: 1em;
+}
+
+.liveEditor :global(.token.bold) {
+    font-weight: bold;
+    color: #000;
+}
+
+.liveEditor :global(.token.italic) {
+    font-style: italic;
+}
+
+.liveEditor :global(.token.code) {
+    font-family: "Fira Code", monospace;
+    color: #e83e8c;
+}
+
+.liveEditor :global(.token.url) {
+    color: #0366d6;
+    text-decoration: underline;
+}
+
+.liveEditor :global(.token.list) {
+    color: #42b883;
+    font-weight: bold;
+}
+
+.liveEditor :global(.token.blockquote) {
+    color: #6a737d;
+    border-left: 4px solid #dfe2e5;
+    padding-left: 1rem;
+    display: block;
 }

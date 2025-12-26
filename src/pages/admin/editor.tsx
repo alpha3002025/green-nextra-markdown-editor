@@ -11,6 +11,10 @@ import {
 } from 'lucide-react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism'
+import LiveEditor from 'react-simple-code-editor';
+import Prism from 'prismjs';
+import 'prismjs/components/prism-markdown';
+import 'prismjs/themes/prism.css'; // Import base Prism styles
 
 // Toast Component
 function Toast({ message }: { message: string }) {
@@ -60,7 +64,7 @@ export default function Editor() {
     const [isSidebarOpen, setSidebarOpen] = useState(true)
     const [toastMsg, setToastMsg] = useState('')
     const [toc, setToc] = useState<{ id: string, text: string, level: number }[]>([]);
-    const [viewMode, setViewMode] = useState<'source' | 'preview' | 'both'>('both')
+    const [viewMode, setViewMode] = useState<'source' | 'preview' | 'both' | 'live'>('both')
     const [tocWidth, setTocWidth] = useState(250);
     const [isResizing, setIsResizing] = useState(false);
 
@@ -378,11 +382,12 @@ export default function Editor() {
                                 <select
                                     className={styles.viewModeSelect}
                                     value={viewMode}
-                                    onChange={(e) => setViewMode(e.target.value as 'source' | 'preview' | 'both')}
+                                    onChange={(e) => setViewMode(e.target.value as 'source' | 'preview' | 'both' | 'live')}
                                 >
                                     <option value="source">Source Mode</option>
                                     <option value="preview">Preview Mode</option>
                                     <option value="both">Both Mode</option>
+                                    <option value="live">Live Mode</option>
                                 </select>
                                 <button className={styles.saveBtn} onClick={savePost}>
                                     <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -437,7 +442,7 @@ export default function Editor() {
                             <div
                                 className={`${styles.pane} ${styles.editorPane}`}
                                 style={{
-                                    display: viewMode === 'preview' ? 'none' : 'flex',
+                                    display: (viewMode === 'preview' || viewMode === 'live') ? 'none' : 'flex',
                                     borderRight: viewMode === 'both' ? '1px solid #e9ecef' : 'none'
                                 }}
                             >
@@ -452,7 +457,7 @@ export default function Editor() {
                             <div
                                 className={`${styles.pane} ${styles.previewPane}`}
                                 style={{
-                                    display: viewMode === 'source' ? 'none' : 'flex'
+                                    display: (viewMode === 'source' || viewMode === 'live') ? 'none' : 'flex'
                                 }}
                             >
                                 <div className={`${styles.previewContent} prose max-w-none`}>
@@ -498,6 +503,30 @@ export default function Editor() {
                                     </ReactMarkdown>
                                 </div>
                             </div>
+
+                            {/* Live Mode Editor */}
+                            <div
+                                className={`${styles.pane} ${styles.livePane}`}
+                                style={{ display: viewMode === 'live' ? 'block' : 'none' }}
+                            >
+                                <div className={styles.liveEditorContainer}>
+                                    <LiveEditor
+                                        value={content}
+                                        onValueChange={code => setContent(code)}
+                                        highlight={code => Prism.highlight(code, Prism.languages.markdown, 'markdown')}
+                                        padding={30}
+                                        className={styles.liveEditor}
+                                        textareaClassName={styles.liveEditorTextarea}
+                                        style={{
+                                            fontFamily: '"Fira Code", "Fira Mono", monospace',
+                                            fontSize: 16,
+                                            backgroundColor: '#ffffff',
+                                            minHeight: '100%'
+                                        }}
+                                    />
+                                </div>
+                            </div>
+
                             {/* TOC Sidebar */}
                             <div className={styles.tocSidebar} style={{ width: tocWidth }}>
                                 <div className={styles.resizer} onMouseDown={startResizing} />
