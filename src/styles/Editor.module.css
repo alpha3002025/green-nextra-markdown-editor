@@ -269,6 +269,63 @@
     overflow-y: auto;
 }
 
+/* Match Live Mode Styles for Preview */
+.previewContent h1 {
+    font-size: 2.25em;
+    font-weight: bold;
+    color: #333;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid #eaeaea;
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+    line-height: 1.2;
+}
+
+.previewContent h2 {
+    font-size: 1.95em;
+    font-weight: bold;
+    color: #333;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    line-height: 1.3;
+}
+
+.previewContent h3 {
+    font-size: 1.7em;
+    font-weight: bold;
+    color: #333;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    line-height: 1.4;
+}
+
+.previewContent h4 {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #333;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    line-height: 1.5;
+}
+
+.previewContent h5 {
+    font-size: 1.3em;
+    font-weight: bold;
+    color: #333;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    line-height: 1.5;
+}
+
+.previewContent h6 {
+    font-size: 1.15em;
+    font-weight: bold;
+    color: #333;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    line-height: 1.5;
+}
+
 .previewContent :global(.prose) {
     max-width: 100%;
 }
@@ -513,8 +570,10 @@
 }
 
 /* Prism Token Styles for "Styled Editor" feel */
+/* Prism Token Styles for "Styled Editor" feel */
+/* Prism Token Styles for "Styled Editor" feel */
 .liveEditor :global(.token.title.h1) {
-    font-size: 2em;
+    font-size: 2.25em;
     font-weight: bold;
     color: #333;
     display: block;
@@ -524,17 +583,41 @@
 }
 
 .liveEditor :global(.token.title.h2) {
-    font-size: 1.5em;
+    font-size: 1.95em;
     font-weight: bold;
-    color: #444;
+    color: #333;
     display: block;
     margin-top: 1em;
 }
 
 .liveEditor :global(.token.title.h3) {
-    font-size: 1.25em;
+    font-size: 1.7em;
     font-weight: bold;
-    color: #555;
+    color: #333;
+    display: block;
+    margin-top: 1em;
+}
+
+.liveEditor :global(.token.title.h4) {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #333;
+    display: block;
+    margin-top: 1em;
+}
+
+.liveEditor :global(.token.title.h5) {
+    font-size: 1.3em;
+    font-weight: bold;
+    color: #333;
+    display: block;
+    margin-top: 1em;
+}
+
+.liveEditor :global(.token.title.h6) {
+    font-size: 1.15em;
+    font-weight: bold;
+    color: #333;
     display: block;
     margin-top: 1em;
 }
