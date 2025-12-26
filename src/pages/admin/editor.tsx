@@ -7,7 +7,7 @@ import styles from '../../styles/Editor.module.css'
 import {
     Bold, Italic, Heading1, Heading2, List, ListOrdered,
     Quote, Link as LinkIcon, Image as ImageIcon, Code,
-    FileText, Menu, ChevronLeft, Save, Plus, Copy
+    FileText, Menu, ChevronLeft, Save, Plus, Copy, X, ArrowLeft
 } from 'lucide-react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism'
@@ -198,6 +198,7 @@ export default function Editor() {
         if (res.ok) {
             setStatus('Saved')
             setTimeout(() => setStatus(''), 2000)
+            window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Saved successfully' }))
         } else {
             setStatus('Error saving')
         }
@@ -234,6 +235,38 @@ export default function Editor() {
             setStatus('Upload failed')
         }
         e.target.value = ''
+    }
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault()
+    }
+
+    const handleDrop = async (e: React.DragEvent) => {
+        e.preventDefault()
+        if (!currentPost || !e.dataTransfer.files || !e.dataTransfer.files[0]) return
+
+        // Verify if it is an image
+        const file = e.dataTransfer.files[0]
+        if (!file.type.startsWith('image/')) return
+
+        const formData = new FormData()
+        formData.append('file', file)
+
+        setStatus('Uploading...')
+        const res = await fetch(`/api/upload?slug=${currentPost}`, {
+            method: 'POST',
+            body: formData
+        })
+
+        if (res.ok) {
+            const { filename } = await res.json()
+            insertText(`![](./img/${filename})`)
+            setStatus('Image uploaded')
+            window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Image uploaded successfully' }))
+        } else {
+            setStatus('Upload failed')
+            window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Upload failed' }))
+        }
     }
 
     const insertText = (textToInsert: string) => {
@@ -394,6 +427,9 @@ export default function Editor() {
                                         <Save size={16} /> Save
                                     </span>
                                 </button>
+                                <button className={styles.cancelBtn} onClick={() => router.push(`/posts/${currentPost}`)}>
+                                    <ArrowLeft size={16} /> Back
+                                </button>
                             </>
                         )}
                     </div>
@@ -436,7 +472,11 @@ export default function Editor() {
                 )}
 
                 {/* Editor Workspace */}
-                <div className={styles.workspace}>
+                <div
+                    className={styles.workspace}
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                >
                     {currentPost ? (
                         <>
                             <div
