@@ -427,7 +427,7 @@ export default function Editor() {
                                         <Save size={16} /> Save
                                     </span>
                                 </button>
-                                <button className={styles.cancelBtn} onClick={() => router.push(`/posts/${currentPost}`)}>
+                                <button className={styles.cancelBtn} onClick={() => router.push(currentPost === 'home' ? '/' : `/${currentPost}`)}>
                                     <ArrowLeft size={16} /> Back
                                 </button>
                             </>

@@ -170,15 +170,24 @@ function EditButton() {
 
   useEffect(() => {
     setMounted(true);
-    // Check if path is /posts/...
-    if (router.pathname.startsWith('/posts/')) {
-      // Extract slug
-      const parts = router.pathname.split('/');
-      if (parts.length >= 3) {
-        setSlug(parts[2]);
-      }
-    } else {
+    // Check path.
+    // Root is home.
+    // Anything else under / (e.g. /hello-next) is a post, unless it's /admin.
+    if (router.pathname.startsWith('/admin')) {
       setSlug("");
+      return;
+    }
+
+    if (router.pathname === '/') {
+      setSlug('home');
+    } else {
+      // Extract slug from /slug
+      const parts = router.pathname.split('/').filter(Boolean);
+      if (parts.length > 0) {
+        setSlug(parts[0]);
+      } else {
+        setSlug("");
+      }
     }
   }, [router]);
 

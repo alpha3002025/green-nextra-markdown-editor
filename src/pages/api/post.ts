@@ -2,7 +2,8 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import fs from 'fs'
 import path from 'path'
 
-const POSTS_DIR = path.join(process.cwd(), 'src/pages/posts')
+// Changed to src/pages for flat structure
+const PAGES_DIR = path.join(process.cwd(), 'src/pages')
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
     if (process.env.NODE_ENV !== 'development') {
@@ -12,15 +13,30 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     const { slug } = req.query
     if (!slug || Array.isArray(slug)) return res.status(400).json({ error: 'Invalid slug' })
 
-    const dir = path.join(POSTS_DIR, slug)
-    const filePath = path.join(dir, 'index.md')
+    let dir: string
+    let filePath: string
+    let imgDir: string
+
+    if (slug === 'home') {
+        dir = PAGES_DIR
+        filePath = path.join(dir, 'index.mdx')
+        imgDir = path.join(dir, 'img')
+    } else {
+        dir = path.join(PAGES_DIR, slug)
+        // Check for index.md or index.mdx
+        if (fs.existsSync(path.join(dir, 'index.mdx'))) {
+            filePath = path.join(dir, 'index.mdx')
+        } else {
+            filePath = path.join(dir, 'index.md')
+        }
+        imgDir = path.join(dir, 'img')
+    }
 
     if (req.method === 'GET') {
         if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Post not found' })
         const content = fs.readFileSync(filePath, 'utf8')
 
         // Also list images
-        const imgDir = path.join(dir, 'img')
         let images: string[] = []
         if (fs.existsSync(imgDir)) {
             images = fs.readdirSync(imgDir).filter(f => /\.(png|jpg|jpeg|gif)$/.test(f))
@@ -32,13 +48,15 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method === 'PUT') {
         const { content } = req.body
         if (typeof content !== 'string') return res.status(400).json({ error: 'Content required' })
-        if (!fs.existsSync(dir)) return res.status(404).json({ error: 'Post not found' })
+        // specific check for home to allow index.mdx overwrite even if "dir" check below might be weird
+        if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Post not found' })
 
         fs.writeFileSync(filePath, content)
         return res.status(200).json({ success: true })
     }
 
     if (req.method === 'DELETE') {
+        if (slug === 'home') return res.status(403).json({ error: 'Cannot delete home page' })
         if (fs.existsSync(dir)) {
             fs.rmSync(dir, { recursive: true, force: true })
         }

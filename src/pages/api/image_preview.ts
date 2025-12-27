@@ -14,7 +14,15 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     // Security: prevent traversal
     if (file.includes('..') || slug.includes('..')) return res.status(403).end()
 
-    const filePath = path.join(process.cwd(), 'src/pages/posts', slug, 'img', file)
+    let filePath: string
+    // Changed to src/pages for flat structure
+    const PAGES_DIR = path.join(process.cwd(), 'src/pages')
+
+    if (slug === 'home') {
+        filePath = path.join(PAGES_DIR, 'img', file as string)
+    } else {
+        filePath = path.join(PAGES_DIR, slug as string, 'img', file as string)
+    }
     if (!fs.existsSync(filePath)) return res.status(404).end()
 
     const ext = path.extname(filePath).toLowerCase()

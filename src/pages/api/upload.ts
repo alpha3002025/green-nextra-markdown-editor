@@ -9,7 +9,8 @@ export const config = {
     },
 }
 
-const POSTS_DIR = path.join(process.cwd(), 'src/pages/posts')
+// Changed to src/pages for flat structure
+const PAGES_DIR = path.join(process.cwd(), 'src/pages')
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (process.env.NODE_ENV !== 'development') {
@@ -21,11 +22,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { slug } = req.query
     if (!slug || Array.isArray(slug)) return res.status(400).json({ error: 'Slug required' })
 
-    const postDir = path.join(POSTS_DIR, slug)
-    const imgDir = path.join(postDir, 'img')
+    let imgDir: string
+    if (slug === 'home') {
+        imgDir = path.join(process.cwd(), 'src/pages/img')
+    } else {
+        const postDir = path.join(PAGES_DIR, slug as string)
+        imgDir = path.join(postDir, 'img')
+    }
 
     if (!fs.existsSync(imgDir)) {
-        return res.status(404).json({ error: 'Post image directory not found' })
+        // Create it if it doesn't exist mainly for home, or new posts
+        // For security, maybe we should check if post dir exists first?
+        // But let's keep it simple as per previous logic which allowed home to create it.
+        // Actually, if it's a new post, the post creation logic should make the dir.
+        // If it's home, we make it.
+        const postDir = slug === 'home' ? PAGES_DIR : path.join(PAGES_DIR, slug as string)
+
+        if (fs.existsSync(postDir)) {
+            fs.mkdirSync(imgDir, { recursive: true })
+        } else {
+            return res.status(404).json({ error: 'Post directory not found' })
+        }
     }
 
     const form = formidable({})
