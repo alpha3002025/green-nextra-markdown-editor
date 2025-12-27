@@ -674,3 +674,60 @@
     padding-left: 1rem;
     display: block;
 }
+
+.contextMenu {
+    position: fixed;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    padding: 4px 0;
+    min-width: 160px;
+    animation: fadeIn 0.1s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.contextMenuItem {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #333;
+    transition: background-color 0.1s;
+}
+
+.contextMenuItem:hover {
+    background-color: #f0f8f5;
+    color: #42b883;
+}
+
+.contextMenuDivider {
+    border-top: 1px solid #eee;
+    margin: 4px 0;
+}
+
+.contextMenuHeader {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    color: #888;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 4px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}

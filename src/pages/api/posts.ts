@@ -21,6 +21,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
             name: string
             type: 'file' | 'directory'
             slug?: string
+            path: string
             children?: FileNode[]
         }
 
@@ -31,39 +32,44 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
             for (const item of items) {
                 if (exclude.includes(item.name)) continue
 
-                // Check for index files (render as file node)
-                // If relativePath is empty, it's home. Otherwise it's the folder slug.
-                if (item.isFile() && (item.name === 'index.mdx' || item.name === 'index.md')) {
-                    nodes.push({
-                        name: item.name,
-                        type: 'file',
-                        slug: relativePath || 'home'
-                    })
-                    continue
-                }
-
                 if (item.isDirectory()) {
                     const childRelativePath = relativePath ? path.join(relativePath, item.name) : item.name
                     const children = buildTree(path.join(dir, item.name), childRelativePath)
-
-                    // Only add directory if it has content (or we can show empty dirs too)
-                    // Let's show it anyway so user can see structure
                     nodes.push({
                         name: item.name,
                         type: 'directory',
+                        path: childRelativePath,
                         children
+                    })
+                } else if (/\.(md|mdx)$/.test(item.name)) {
+                    // It's a markdown file
+                    // Calculate slug for Nextra routing
+                    let slug = relativePath
+                    if (item.name === 'index.md' || item.name === 'index.mdx') {
+                        slug = relativePath || 'home'
+                    } else {
+                        const baseName = item.name.replace(/\.(md|mdx)$/, '')
+                        slug = relativePath ? path.join(relativePath, baseName) : baseName
+                    }
+
+                    nodes.push({
+                        name: item.name,
+                        type: 'file',
+                        slug: slug,
+                        path: relativePath ? path.join(relativePath, item.name) : item.name
                     })
                 }
             }
 
-            // Sort: directories first, then files, or alpha
-            // Ideally: index.md should be somewhat prominent?
-            // Let's sort alphabetically for now.
+            // Sort: directories first, then files
             return nodes.sort((a, b) => {
-                // Keep index.md/mdx at the top if inside a folder?
-                if (a.name.startsWith('index.')) return -1
-                if (b.name.startsWith('index.')) return 1
-                return a.name.localeCompare(b.name)
+                if (a.type === b.type) {
+                    // prioritized index files
+                    if (a.name.startsWith('index.')) return -1
+                    if (b.name.startsWith('index.')) return 1
+                    return a.name.localeCompare(b.name)
+                }
+                return a.type === 'directory' ? -1 : 1
             })
         }
 

@@ -52,27 +52,31 @@ const generateSlug = (text: string) => {
     return text.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
 };
 
-// Tree Node Type
+// Tree Node Type (Updated)
 type FileNode = {
     name: string
     type: 'file' | 'directory'
     slug?: string
+    path: string
     children?: FileNode[]
 }
 
 // Recursive Tree Item Component
-const FileTreeItem = ({ node, level, onLoadPost, currentPost }: { node: FileNode, level: number, onLoadPost: (slug: string) => void, currentPost: string | null }) => {
-    // Default to closed (false)
+const FileTreeItem = ({
+    node,
+    level,
+    onLoadPost,
+    currentPost,
+    onContextMenu
+}: {
+    node: FileNode,
+    level: number,
+    onLoadPost: (slug: string) => void,
+    currentPost: string | null,
+    onContextMenu: (e: React.MouseEvent, node: FileNode) => void
+}) => {
+    // Default to closed (false), unless current post is inside (can be improved later)
     const [isOpen, setIsOpen] = useState(false);
-
-    // Optional: Auto-expand if current active post is inside this tree
-    // However, since we don't iterate children deeply here to check slugs easily without memo, 
-    // and the user specifically asked for "only when button clicked" (implicitly or explicitly),
-    // let's stick to default false. 
-    // Actually, if we want to be smart, we can useEffect to open if currentPost is relevant.
-    // But let's verify the user request: "처음 에디터를 열었을 때는 상위 레벨의 디렉터리만 표현하고... 사용자가 펼침 버튼을 눌렀을 때만... 펼쳐지도록"
-    // This implies default closed.
-
 
     const handleClick = () => {
         if (node.type === 'directory') {
@@ -88,8 +92,13 @@ const FileTreeItem = ({ node, level, onLoadPost, currentPost }: { node: FileNode
         <div>
             <div
                 className={styles.postItem}
-                style={{ paddingLeft: `${1 + level * 0.8}rem`, backgroundColor: isActive ? 'rgba(66, 184, 131, 0.1)' : 'transparent', color: isActive ? '#42b883' : 'inherit' }}
+                style={{
+                    paddingLeft: `${1 + level * 0.8}rem`,
+                    backgroundColor: isActive ? 'rgba(66, 184, 131, 0.1)' : 'transparent',
+                    color: isActive ? '#42b883' : 'inherit'
+                }}
                 onClick={handleClick}
+                onContextMenu={(e) => onContextMenu(e, node)}
             >
                 {node.type === 'directory' ? (
                     <>
@@ -104,7 +113,14 @@ const FileTreeItem = ({ node, level, onLoadPost, currentPost }: { node: FileNode
             {node.type === 'directory' && isOpen && node.children && (
                 <div>
                     {node.children.map((child, i) => (
-                        <FileTreeItem key={i} node={child} level={level + 1} onLoadPost={onLoadPost} currentPost={currentPost} />
+                        <FileTreeItem
+                            key={i}
+                            node={child}
+                            level={level + 1}
+                            onLoadPost={onLoadPost}
+                            currentPost={currentPost}
+                            onContextMenu={onContextMenu}
+                        />
                     ))}
                 </div>
             )}
@@ -116,11 +132,10 @@ export default function Editor() {
     const router = useRouter()
     const { open } = router.query
 
-    const [posts, setPosts] = useState<FileNode[]>([]) // Changed type
+    const [posts, setPosts] = useState<FileNode[]>([])
     const [currentPost, setCurrentPost] = useState<string | null>(null)
     const [content, setContent] = useState('')
     const [status, setStatus] = useState('')
-    const [newPostTitle, setNewPostTitle] = useState('')
     const [isSidebarOpen, setSidebarOpen] = useState(true)
     const [toastMsg, setToastMsg] = useState('')
     const [toc, setToc] = useState<{ id: string, text: string, level: number }[]>([]);
@@ -128,7 +143,17 @@ export default function Editor() {
     const [tocWidth, setTocWidth] = useState(250);
     const [isResizing, setIsResizing] = useState(false);
 
+    // Context Menu State
+    const [contextMenu, setContextMenu] = useState<{ x: number, y: number, node: FileNode } | null>(null);
+
     const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+    // Close context menu on click elsewhere
+    useEffect(() => {
+        const handleClick = () => setContextMenu(null);
+        window.addEventListener('click', handleClick);
+        return () => window.removeEventListener('click', handleClick);
+    }, []);
 
     useEffect(() => {
         const handleToast = (e: any) => {
@@ -220,24 +245,6 @@ export default function Editor() {
         }
     }
 
-    // ... (createPost logic unchanged essentially, but creates folder+index usually. maybe UI needs update for create later)
-    const createPost = async () => {
-        if (!newPostTitle) return
-        const res = await fetch('/api/posts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title: newPostTitle })
-        })
-        if (res.ok) {
-            const { slug } = await res.json()
-            setNewPostTitle('')
-            await fetchPosts()
-            loadPost(slug)
-        } else {
-            alert('Failed to create post')
-        }
-    }
-
     const loadPost = async (slug: string) => {
         setCurrentPost(slug)
         const res = await fetch(`/api/post?slug=${slug}`)
@@ -248,7 +255,6 @@ export default function Editor() {
         }
     }
 
-    // ... (savePost, handleImageUpload, etc unchanged)
     const savePost = useCallback(async () => {
         if (!currentPost) return
         setStatus('Saving...')
@@ -299,7 +305,6 @@ export default function Editor() {
         e.target.value = ''
     }
 
-    // ... (drag drop logic unchanged)
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault()
     }
@@ -364,41 +369,32 @@ export default function Editor() {
         const selectedText = text.substring(start, end)
 
         let newText = ''
-        let newCursorPos = end
 
         switch (type) {
             case 'bold':
                 newText = text.substring(0, start) + `**${selectedText}**` + text.substring(end)
-                newCursorPos = end + 4
                 break
             case 'italic':
                 newText = text.substring(0, start) + `*${selectedText}*` + text.substring(end)
-                newCursorPos = end + 2
                 break
             case 'h1':
                 newText = text.substring(0, start) + `# ${selectedText}` + text.substring(end)
-                newCursorPos = end + 2
                 break
             case 'h2':
                 newText = text.substring(0, start) + `## ${selectedText}` + text.substring(end)
-                newCursorPos = end + 3
                 break
             case 'quote':
                 newText = text.substring(0, start) + `> ${selectedText}` + text.substring(end)
-                newCursorPos = end + 2
                 break
             case 'code':
                 newText = text.substring(0, start) + `\`\`\`\n${selectedText}\n\`\`\`` + text.substring(end)
-                newCursorPos = end + 8
                 break
             case 'link':
                 const linkText = selectedText || 'link'
                 newText = text.substring(0, start) + `[${linkText}](url)` + text.substring(end)
-                newCursorPos = end + 3 + (selectedText ? 0 : 4)
                 break
             case 'list':
                 newText = text.substring(0, start) + `- ${selectedText}` + text.substring(end)
-                newCursorPos = end + 2
                 break
         }
 
@@ -406,7 +402,6 @@ export default function Editor() {
             setContent(newText)
             setTimeout(() => {
                 textarea.focus()
-                // textarea.setSelectionRange(newCursorPos, newCursorPos) 
             }, 0)
         }
     }
@@ -418,6 +413,91 @@ export default function Editor() {
         }
     };
 
+    // Context Menu Handlers
+    const handleContextMenu = (e: React.MouseEvent, node: FileNode) => {
+        e.preventDefault();
+        e.stopPropagation(); // Prevent triggering parent context menus
+        setContextMenu({ x: e.clientX, y: e.clientY, node });
+    };
+
+    const handleFSAction = async (action: 'new_file' | 'new_folder' | 'rename' | 'delete') => {
+        if (!contextMenu) return;
+        const { node } = contextMenu;
+        setContextMenu(null); // Close menu
+
+        // Determine parent path
+        // If node is a directory, actions like New File are inside it.
+        // If node is a file, actions like New File are in its parent directory.
+        // Wait, normally right clicking a file -> New File creates sibling.
+        // Right clicking a dir -> New File creates child.
+
+        // Helper to get directory logic
+        const getParentDir = (n: FileNode) => {
+            if (n.type === 'directory') return n.path;
+            const parts = n.path.split('/');
+            parts.pop();
+            return parts.join('/');
+        }
+
+        // Target base for creation
+        const creationBase = node.type === 'directory' ? node.path : getParentDir(node);
+
+        try {
+            if (action === 'new_file') {
+                const name = prompt('Enter new file name (e.g. hello.md):');
+                if (!name) return;
+                const path = creationBase ? `${creationBase}/${name}` : name;
+
+                const res = await fetch('/api/fs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'file', path })
+                });
+                if (!res.ok) throw new Error('Failed to create file');
+                fetchPosts();
+            } else if (action === 'new_folder') {
+                const name = prompt('Enter new folder name:');
+                if (!name) return;
+                const path = creationBase ? `${creationBase}/${name}` : name;
+
+                const res = await fetch('/api/fs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'directory', path })
+                });
+                if (!res.ok) throw new Error('Failed to create folder');
+                fetchPosts();
+            } else if (action === 'rename') {
+                const newName = prompt('Enter new name:', node.name);
+                if (!newName || newName === node.name) return;
+                const parent = getParentDir(node);
+                const newPath = parent ? `${parent}/${newName}` : newName;
+
+                const res = await fetch('/api/fs', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ oldPath: node.path, newPath })
+                });
+                if (!res.ok) throw new Error('Failed to rename');
+                fetchPosts();
+                // If we renamed the current post, we should probably update currentPost or redirect?
+                // For now let's just refresh tree. 
+            } else if (action === 'delete') {
+                if (!confirm(`Are you sure you want to delete ${node.name}?`)) return;
+
+                const res = await fetch('/api/fs', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: node.path })
+                });
+                if (!res.ok) throw new Error('Failed to delete');
+                if (currentPost === node.slug) setCurrentPost(null);
+                fetchPosts();
+            }
+        } catch (e: any) {
+            alert(e.message);
+        }
+    }
 
     return (
         <div className={styles.container}>
@@ -433,26 +513,78 @@ export default function Editor() {
                     <FileText size={20} />
                     <span>Explorer</span>
                 </div>
-                <div className={styles.newPostForm}>
-                    <div className={styles.inputGroup}>
-                        <input
-                            className={styles.input}
-                            placeholder="New File..."
-                            value={newPostTitle}
-                            onChange={e => setNewPostTitle(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && createPost()}
-                        />
-                        <button className={styles.btnPrimary} onClick={createPost}>
-                            <Plus size={16} />
-                        </button>
-                    </div>
-                </div>
+                {/* Removed top form as context menu is preferred, or we could add a root 'add' button later */}
                 <div className={styles.postList}>
                     {posts.map((node, i) => (
-                        <FileTreeItem key={i} node={node} level={0} onLoadPost={loadPost} currentPost={currentPost} />
+                        <FileTreeItem
+                            key={i}
+                            node={node}
+                            level={0}
+                            onLoadPost={loadPost}
+                            currentPost={currentPost}
+                            onContextMenu={handleContextMenu}
+                        />
                     ))}
+                    {posts.length === 0 && (
+                        <div style={{ padding: '1rem', color: '#888', fontSize: '0.8rem', textAlign: 'center' }}>
+                            No files found. <br /> Right click to create new.
+                        </div>
+                    )}
+                    {/* Invisible div to allow right clicking empty area to create at root? */}
+                    <div
+                        style={{ flex: 1, minHeight: '50px' }}
+                        onContextMenu={(e) => {
+                            // Virtual root node
+                            handleContextMenu(e, { name: 'Root', type: 'directory', path: '' } as FileNode)
+                        }}
+                    />
                 </div>
             </div>
+
+            {/* Context Menu */}
+            {contextMenu && (
+                <div
+                    className={styles.contextMenu}
+                    style={{
+                        top: contextMenu.y,
+                        left: contextMenu.x,
+                    }}
+                >
+                    <div className={styles.contextMenuHeader}>
+                        {contextMenu.node.name || 'Root'}
+                    </div>
+                    <div
+                        className={styles.contextMenuItem}
+                        onClick={() => handleFSAction('new_file')}
+                    >
+                        <FileText size={14} /> New File
+                    </div>
+                    <div
+                        className={styles.contextMenuItem}
+                        onClick={() => handleFSAction('new_folder')}
+                    >
+                        <Plus size={14} /> New Folder
+                    </div>
+                    {contextMenu.node.path !== '' && ( // Don't show rename/delete for Root
+                        <>
+                            <div className={styles.contextMenuDivider} />
+                            <div
+                                className={styles.contextMenuItem}
+                                onClick={() => handleFSAction('rename')}
+                            >
+                                <FileText size={14} /> Rename
+                            </div>
+                            <div
+                                className={styles.contextMenuItem}
+                                onClick={() => handleFSAction('delete')}
+                                style={{ color: '#e53e3e' }}
+                            >
+                                <X size={14} /> Delete
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
 
             {/* Main Content */}
             <div className={styles.main}>
