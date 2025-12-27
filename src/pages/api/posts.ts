@@ -14,24 +14,61 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         if (!fs.existsSync(PAGES_DIR)) {
             return res.status(200).json([])
         }
-        const files = fs.readdirSync(PAGES_DIR, { withFileTypes: true })
 
-        // Exclude system directories and files
-        const exclude = ['api', 'admin', 'posts', 'img', 'node_modules', '.next']
+        const exclude = ['api', 'admin', 'img', 'node_modules', '.next']
 
-        const posts = files
-            .filter(dirent => dirent.isDirectory() && !exclude.includes(dirent.name))
-            .map(dirent => dirent.name)
-
-        // Optionally add 'home' if we want to list index.mdx as a post in the list, 
-        // but typically the list is for "folders". 
-        // The editor frontend treats "home" separately or we can add it here.
-        // Let's explicitly add 'home' to the list so it appears in the sidebar if not already handled.
-        if (!posts.includes('home')) {
-            posts.unshift('home')
+        type FileNode = {
+            name: string
+            type: 'file' | 'directory'
+            slug?: string
+            children?: FileNode[]
         }
 
-        return res.status(200).json(posts)
+        const buildTree = (dir: string, relativePath: string = ''): FileNode[] => {
+            const items = fs.readdirSync(dir, { withFileTypes: true })
+            const nodes: FileNode[] = []
+
+            for (const item of items) {
+                if (exclude.includes(item.name)) continue
+
+                // Check for index files (render as file node)
+                // If relativePath is empty, it's home. Otherwise it's the folder slug.
+                if (item.isFile() && (item.name === 'index.mdx' || item.name === 'index.md')) {
+                    nodes.push({
+                        name: item.name,
+                        type: 'file',
+                        slug: relativePath || 'home'
+                    })
+                    continue
+                }
+
+                if (item.isDirectory()) {
+                    const childRelativePath = relativePath ? path.join(relativePath, item.name) : item.name
+                    const children = buildTree(path.join(dir, item.name), childRelativePath)
+
+                    // Only add directory if it has content (or we can show empty dirs too)
+                    // Let's show it anyway so user can see structure
+                    nodes.push({
+                        name: item.name,
+                        type: 'directory',
+                        children
+                    })
+                }
+            }
+
+            // Sort: directories first, then files, or alpha
+            // Ideally: index.md should be somewhat prominent?
+            // Let's sort alphabetically for now.
+            return nodes.sort((a, b) => {
+                // Keep index.md/mdx at the top if inside a folder?
+                if (a.name.startsWith('index.')) return -1
+                if (b.name.startsWith('index.')) return 1
+                return a.name.localeCompare(b.name)
+            })
+        }
+
+        const tree = buildTree(PAGES_DIR)
+        return res.status(200).json(tree)
     }
 
     if (req.method === 'POST') {

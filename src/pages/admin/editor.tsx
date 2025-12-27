@@ -52,11 +52,71 @@ const generateSlug = (text: string) => {
     return text.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
 };
 
+// Tree Node Type
+type FileNode = {
+    name: string
+    type: 'file' | 'directory'
+    slug?: string
+    children?: FileNode[]
+}
+
+// Recursive Tree Item Component
+const FileTreeItem = ({ node, level, onLoadPost, currentPost }: { node: FileNode, level: number, onLoadPost: (slug: string) => void, currentPost: string | null }) => {
+    // Default to closed (false)
+    const [isOpen, setIsOpen] = useState(false);
+
+    // Optional: Auto-expand if current active post is inside this tree
+    // However, since we don't iterate children deeply here to check slugs easily without memo, 
+    // and the user specifically asked for "only when button clicked" (implicitly or explicitly),
+    // let's stick to default false. 
+    // Actually, if we want to be smart, we can useEffect to open if currentPost is relevant.
+    // But let's verify the user request: "처음 에디터를 열었을 때는 상위 레벨의 디렉터리만 표현하고... 사용자가 펼침 버튼을 눌렀을 때만... 펼쳐지도록"
+    // This implies default closed.
+
+
+    const handleClick = () => {
+        if (node.type === 'directory') {
+            setIsOpen(!isOpen);
+        } else if (node.slug) {
+            onLoadPost(node.slug);
+        }
+    }
+
+    const isActive = node.slug === currentPost;
+
+    return (
+        <div>
+            <div
+                className={styles.postItem}
+                style={{ paddingLeft: `${1 + level * 0.8}rem`, backgroundColor: isActive ? 'rgba(66, 184, 131, 0.1)' : 'transparent', color: isActive ? '#42b883' : 'inherit' }}
+                onClick={handleClick}
+            >
+                {node.type === 'directory' ? (
+                    <>
+                        <span style={{ marginRight: 4, transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block', transition: 'transform 0.2s' }}>▶</span>
+                        <FileText size={16} style={{ opacity: 0.7 }} />
+                    </>
+                ) : (
+                    <FileText size={16} />
+                )}
+                <span style={{ marginLeft: 8 }}>{node.name}</span>
+            </div>
+            {node.type === 'directory' && isOpen && node.children && (
+                <div>
+                    {node.children.map((child, i) => (
+                        <FileTreeItem key={i} node={child} level={level + 1} onLoadPost={onLoadPost} currentPost={currentPost} />
+                    ))}
+                </div>
+            )}
+        </div>
+    )
+}
+
 export default function Editor() {
     const router = useRouter()
     const { open } = router.query
 
-    const [posts, setPosts] = useState<string[]>([])
+    const [posts, setPosts] = useState<FileNode[]>([]) // Changed type
     const [currentPost, setCurrentPost] = useState<string | null>(null)
     const [content, setContent] = useState('')
     const [status, setStatus] = useState('')
@@ -160,6 +220,7 @@ export default function Editor() {
         }
     }
 
+    // ... (createPost logic unchanged essentially, but creates folder+index usually. maybe UI needs update for create later)
     const createPost = async () => {
         if (!newPostTitle) return
         const res = await fetch('/api/posts', {
@@ -187,6 +248,7 @@ export default function Editor() {
         }
     }
 
+    // ... (savePost, handleImageUpload, etc unchanged)
     const savePost = useCallback(async () => {
         if (!currentPost) return
         setStatus('Saving...')
@@ -237,6 +299,7 @@ export default function Editor() {
         e.target.value = ''
     }
 
+    // ... (drag drop logic unchanged)
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault()
     }
@@ -348,13 +411,13 @@ export default function Editor() {
         }
     }
 
-    // Helper to scroll to element
     const scrollToHeader = (id: string) => {
         const element = document.getElementById(id);
         if (element) {
             element.scrollIntoView({ behavior: 'smooth' });
         }
     };
+
 
     return (
         <div className={styles.container}>
@@ -385,15 +448,8 @@ export default function Editor() {
                     </div>
                 </div>
                 <div className={styles.postList}>
-                    {posts.map(slug => (
-                        <div
-                            key={slug}
-                            onClick={() => loadPost(slug)}
-                            className={`${styles.postItem} ${currentPost === slug ? styles.active : ''}`}
-                        >
-                            <FileText size={16} />
-                            <span>{slug}</span>
-                        </div>
+                    {posts.map((node, i) => (
+                        <FileTreeItem key={i} node={node} level={0} onLoadPost={loadPost} currentPost={currentPost} />
                     ))}
                 </div>
             </div>
