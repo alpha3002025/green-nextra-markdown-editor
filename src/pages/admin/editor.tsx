@@ -15,6 +15,7 @@ import LiveEditor from 'react-simple-code-editor';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-markdown';
 import 'prismjs/themes/prism.css'; // Import base Prism styles
+import { YouTubeEmbed, getYouTubeId } from '@/components/YouTubeEmbed';
 
 // Toast Component
 function Toast({ message }: { message: string }) {
@@ -64,6 +65,9 @@ function CodeBlock({ language, value }: { language: string, value: string }) {
         </div>
     )
 }
+
+// YouTube helper components moved to @/components/YouTubeEmbed
+
 
 // function to generate slug from text
 const generateSlug = (text: string) => {
@@ -783,7 +787,29 @@ export default function Editor() {
                                             },
                                             h1: ({ children }) => <h1 id={generateSlug(String(children))}>{children}</h1>,
                                             h2: ({ children }) => <h2 id={generateSlug(String(children))}>{children}</h2>,
-                                            h3: ({ children }) => <h3 id={generateSlug(String(children))}>{children}</h3>
+                                            h3: ({ children }) => <h3 id={generateSlug(String(children))}>{children}</h3>,
+                                            a: ({ href, children }: any) => {
+                                                const url = href || '';
+                                                const videoId = getYouTubeId(url);
+
+                                                // Flexible raw link detection that handles both string and array children
+                                                // and checks if the link text matches or contains the URL
+                                                const linkText = Array.isArray(children)
+                                                    ? children.map(c => typeof c === 'string' ? c : '').join('')
+                                                    : String(children || '');
+
+                                                const isRawLink = linkText.trim().includes(url.trim());
+
+                                                if (videoId && isRawLink) {
+                                                    return (
+                                                        <>
+                                                            <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: '#0366d6', textDecoration: 'underline' }}>{children}</a>
+                                                            <YouTubeEmbed url={url} />
+                                                        </>
+                                                    );
+                                                }
+                                                return <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: '#0366d6', textDecoration: 'underline' }}>{children}</a>;
+                                            }
                                         }}
                                     >
                                         {content}
