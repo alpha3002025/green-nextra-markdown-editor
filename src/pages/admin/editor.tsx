@@ -15,7 +15,9 @@ import LiveEditor from 'react-simple-code-editor';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-markdown';
 import 'prismjs/themes/prism.css'; // Import base Prism styles
+import 'prismjs/themes/prism.css'; // Import base Prism styles
 import { YouTubeEmbed, getYouTubeId } from '@/components/YouTubeEmbed';
+import { LinkPreview } from '@/components/LinkPreview';
 
 // Toast Component
 function Toast({ message }: { message: string }) {
@@ -808,6 +810,17 @@ export default function Editor() {
                                                         </>
                                                     );
                                                 }
+
+                                                // Generic Link Preview for other raw links
+                                                if (isRawLink && (url.startsWith('http://') || url.startsWith('https://'))) {
+                                                    return (
+                                                        <>
+                                                            <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: '#0366d6', textDecoration: 'underline' }}>{children}</a>
+                                                            <LinkPreview url={url} />
+                                                        </>
+                                                    );
+                                                }
+
                                                 return <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: '#0366d6', textDecoration: 'underline' }}>{children}</a>;
                                             }
                                         }}

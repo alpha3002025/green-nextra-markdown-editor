@@ -32,11 +32,23 @@ console.log("Inner");
 ```
 ~~~~
 
-https://www.youtube.com/watch?v=d1dYOl5FSHo
-
 
 ## Verification
 ![Vue Logo](https://vuejs.org/images/logo.png)
+
+
+# youtube link, preview
+https://www.youtube.com/watch?v=d1dYOl5FSHo
+
+
+
+# web external link (1)
+https://ebook.kyobobook.co.kr/dig/pnd/welcome
+
+
+# web external link (2)
+https://product.kyobobook.co.kr/detail/S000218605008
+
 
 
 # image
@@ -46,3 +58,4 @@ https://www.youtube.com/watch?v=d1dYOl5FSHo
 
 ## andar
 ![](./img/20251226-13-12-44-1.png)
+
