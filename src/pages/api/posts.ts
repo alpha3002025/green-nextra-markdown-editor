@@ -41,15 +41,18 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
                         path: childRelativePath,
                         children
                     })
-                } else if (/\.(md|mdx)$/.test(item.name)) {
-                    // It's a markdown file
-                    // Calculate slug for Nextra routing
+                } else if (/\.(md|mdx|json)$/.test(item.name)) {
+                    // It's a markdown or json file (specifically _meta.json)
+                    // If it is _meta.json, we still want it to be editable
+                    // Calculate slug for Nextra routing (though _meta.json isn't a route)
                     let slug = relativePath
                     if (item.name === 'index.md' || item.name === 'index.mdx') {
                         slug = relativePath || 'home'
                     } else {
-                        const baseName = item.name.replace(/\.(md|mdx)$/, '')
-                        slug = relativePath ? path.join(relativePath, baseName) : baseName
+                        const baseName = item.name.replace(/\.(md|mdx|json)$/, '')
+                        slug = relativePath ? path.join(relativePath, item.name) : item.name
+                        // Note: For _meta.json, slug will be path/to/_meta.json 
+                        // The loadPost logic handles slugs roughly
                     }
 
                     nodes.push({

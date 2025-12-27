@@ -420,6 +420,42 @@ export default function Editor() {
         setContextMenu({ x: e.clientX, y: e.clientY, node });
     };
 
+    const handleMetaAction = async () => {
+        if (!contextMenu) return;
+        const { node } = contextMenu;
+        setContextMenu(null); // Close menu
+
+        const newTitle = prompt('Enter new title for sidebar (updates _meta.json):');
+        if (!newTitle) return;
+
+        // Path logic:
+        // For a file "foo.md", key is "foo"
+        // For a folder "bar", key is "bar"
+        // But what if it's "index.md"? Key is "index"
+
+        let key = node.name.replace(/\.(md|mdx)$/, '');
+        // If it's a file, we want the path to that file to locate the _meta.json in the same dir?
+        // Wait, the API takes `targetPath` which is the path to the item being renamed.
+        // It will find the parent dir and update _meta.json there.
+        // E.g. targetPath="folder/foo.md", key="foo"
+
+        try {
+            const res = await fetch('/api/meta', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: node.path, key, title: newTitle })
+            });
+            if (!res.ok) throw new Error('Failed to update title');
+            // Toast or reload? Title update might not reflect in file tree unless we fetch meta titles too.
+            // Currently our file tree only reads FS names.
+            // We might need to update FileNode to include `title` from _meta.json?
+            // For now just success message.
+            window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Title updated in _meta.json' }))
+        } catch (e: any) {
+            alert(e.message);
+        }
+    }
+
     const handleFSAction = async (action: 'new_file' | 'new_folder' | 'rename' | 'delete') => {
         if (!contextMenu) return;
         const { node } = contextMenu;
@@ -572,7 +608,13 @@ export default function Editor() {
                                 className={styles.contextMenuItem}
                                 onClick={() => handleFSAction('rename')}
                             >
-                                <FileText size={14} /> Rename
+                                <FileText size={14} /> Rename File/Folder
+                            </div>
+                            <div
+                                className={styles.contextMenuItem}
+                                onClick={() => handleMetaAction()}
+                            >
+                                <FileText size={14} /> Rename Title (_meta)
                             </div>
                             <div
                                 className={styles.contextMenuItem}
@@ -615,7 +657,15 @@ export default function Editor() {
                                         <Save size={16} /> Save
                                     </span>
                                 </button>
-                                <button className={styles.cancelBtn} onClick={() => router.push(currentPost === 'home' ? '/' : `/${currentPost}`)}>
+                                <button className={styles.cancelBtn} onClick={() => {
+                                    if (currentPost?.endsWith('.json')) {
+                                        // For json config files, go to parent folder usually
+                                        const parent = currentPost.split('/').slice(0, -1).join('/');
+                                        router.push(parent ? `/${parent}` : '/');
+                                    } else {
+                                        router.push(currentPost === 'home' ? '/' : `/${currentPost}`);
+                                    }
+                                }}>
                                     <ArrowLeft size={16} /> Back
                                 </button>
                             </>

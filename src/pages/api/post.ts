@@ -22,14 +22,22 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         filePath = path.join(dir, 'index.mdx')
         imgDir = path.join(dir, 'img')
     } else {
-        dir = path.join(PAGES_DIR, slug)
-        // Check for index.md or index.mdx
-        if (fs.existsSync(path.join(dir, 'index.mdx'))) {
-            filePath = path.join(dir, 'index.mdx')
+        // If slug ends with .json, treat it as a file path relative to PAGES_DIR
+        if (typeof slug === 'string' && slug.endsWith('.json')) {
+            filePath = path.join(PAGES_DIR, slug)
+            dir = path.dirname(filePath)
+            imgDir = path.join(dir, 'img')
         } else {
-            filePath = path.join(dir, 'index.md')
+            // Standard directory-based post logic
+            dir = path.join(PAGES_DIR, slug as string)
+            // Check for index.md or index.mdx
+            if (fs.existsSync(path.join(dir, 'index.mdx'))) {
+                filePath = path.join(dir, 'index.mdx')
+            } else {
+                filePath = path.join(dir, 'index.md')
+            }
+            imgDir = path.join(dir, 'img')
         }
-        imgDir = path.join(dir, 'img')
     }
 
     if (req.method === 'GET') {
