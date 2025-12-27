@@ -34,6 +34,7 @@ function Toast({ message }: { message: string }) {
   );
 }
 
+// Enhanced CodeBlockEnhancer (Lines 37-164 replacement)
 function CodeBlockEnhancer() {
   const router = useRouter();
 
@@ -41,124 +42,223 @@ function CodeBlockEnhancer() {
     const enhance = () => {
       const preElements = document.querySelectorAll('pre');
       preElements.forEach((pre: any) => {
-        if (pre.getAttribute('data-enhanced')) return;
+        if (pre.getAttribute('data-enhanced-interact')) return;
 
-        // Nextra wraps pre in a div usually, or we look for code inside
+        // Basic Structure Check
         const code = pre.querySelector('code');
         if (!code) return;
 
-        let language = '';
-        // Check code class
-        let match = code.className.match(/language-(\w+)/);
-        if (match) language = match[1];
-
-        // Check pre class (some themes put it there)
-        if (!language) {
-          match = pre.className.match(/language-(\w+)/);
-          if (match) language = match[1];
+        // Ensure Pre is relative
+        if (window.getComputedStyle(pre).position === 'static') {
+          pre.style.position = 'relative';
         }
 
-        // Check data attributes
-        if (!language) {
-          language = pre.getAttribute('data-language') || code.getAttribute('data-language') || '';
+        // --- 1. Overlay Container for Highlights ---
+        // We render this BEHIND the text if possible, or using mix-blend-mode if on top?
+        // Code blocks usually have a background color.
+        // We can place this container absolutely.
+        // To ensure it's behind text but above bg, we might need z-index tricks.
+        // Easier: render on top with semi-transparent color and pointer-events: none.
+        const overlay = document.createElement('div');
+        overlay.className = 'code-interaction-overlay';
+        overlay.style.position = 'absolute';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.pointerEvents = 'none'; // Pass through clicks to text selection
+        overlay.style.zIndex = '1';
+        pre.appendChild(overlay);
+
+        // Hover Highlight Element
+        const hoverEl = document.createElement('div');
+        hoverEl.style.position = 'absolute';
+        hoverEl.style.left = '0';
+        hoverEl.style.right = '0'; // Full width
+        hoverEl.style.height = '1.5em'; // Default, will update
+        hoverEl.style.backgroundColor = 'rgba(66, 184, 131, 0.1)';
+        hoverEl.style.borderLeft = '3px solid #42b883';
+        hoverEl.style.display = 'none';
+        hoverEl.style.pointerEvents = 'none';
+        overlay.appendChild(hoverEl);
+
+        // Active (Clicked) Highlight Element
+        const activeEl = document.createElement('div');
+        activeEl.style.position = 'absolute';
+        activeEl.style.left = '0';
+        activeEl.style.right = '0';
+        activeEl.style.height = '1.5em';
+        activeEl.style.backgroundColor = 'rgba(66, 184, 131, 0.2)';
+        activeEl.style.borderLeft = '3px solid #33a06f';
+        activeEl.style.display = 'none';
+        activeEl.style.pointerEvents = 'none';
+        overlay.appendChild(activeEl);
+
+        // State
+        let activeLineIndex: number | null = null;
+        let lineHeight = 24; // Default guess
+
+        // Measure line height from code element
+        const computedStyle = window.getComputedStyle(code);
+        const lhStr = computedStyle.lineHeight;
+        if (lhStr && lhStr !== 'normal') {
+          lineHeight = parseFloat(lhStr);
+        } else {
+          // Fallback measurement
+          const fontSize = parseFloat(computedStyle.fontSize);
+          lineHeight = fontSize * 1.5;
         }
 
-        // Find the wrapper (relative container)
-        // Nextra structure: div (relative) > div (actions) + div (scroll) > pre > code
-        // Or sometimes just div > pre
+        // Event Handler
+        const handleMouseMove = (e: MouseEvent) => {
+          const rect = pre.getBoundingClientRect();
+          const padding = parseFloat(window.getComputedStyle(pre).paddingTop);
+          const relY = e.clientY - rect.top - padding;
+          // Calculate index
+          // Adjust for scroll? Pre usually scrolls.
+          const scrollY = pre.scrollTop;
+          const actualY = relY + scrollY;
+
+          const index = Math.floor(actualY / lineHeight);
+          if (index < 0) return;
+
+          // Move Hover Element
+          hoverEl.style.display = 'block';
+          // Visual position must account for padding
+          hoverEl.style.top = `${(index * lineHeight) + padding}px`;
+          hoverEl.style.height = `${lineHeight}px`;
+        };
+
+        const handleMouseLeave = () => {
+          hoverEl.style.display = 'none';
+        };
+
+        const handleClick = (e: MouseEvent) => {
+          const rect = pre.getBoundingClientRect();
+          const padding = parseFloat(window.getComputedStyle(pre).paddingTop);
+          const relY = e.clientY - rect.top - padding;
+          const scrollY = pre.scrollTop;
+          const actualY = relY + scrollY;
+          const index = Math.floor(actualY / lineHeight);
+
+          // Toggle active
+          if (activeLineIndex === index) {
+            activeLineIndex = null;
+            activeEl.style.display = 'none';
+          } else {
+            activeLineIndex = index;
+            activeEl.style.display = 'block';
+            activeEl.style.top = `${(index * lineHeight) + padding}px`;
+            activeEl.style.height = `${lineHeight}px`;
+          }
+        };
+
+        // Attach Refined Listeners
+        // We attach to PRE because it contains everything.
+        pre.addEventListener('mousemove', handleMouseMove);
+        pre.addEventListener('mouseleave', handleMouseLeave);
+        pre.addEventListener('click', handleClick);
+
+        // Copy Button Logic (Restoring previous simplified logic but appending to wrapper usually)
+        // ... (We keep your existing Copy Button logic simpler or integrated? 
+        // User didn't complain about copy button, but we overwrote the whole function.
+        // Let's bring back the copy button part quickly.)
+
+        // Finding wrapper for Copy Button (Nextra usually wraps pre)
         const wrapper = pre.closest('.nextra-code-block') || pre.parentElement;
-        if (!wrapper) return;
-
-        // Ensure wrapper is relative for positioning
-        if (window.getComputedStyle(wrapper).position === 'static') {
+        if (wrapper && window.getComputedStyle(wrapper).position === 'static') {
           wrapper.style.position = 'relative';
         }
 
-        // Create Container for our controls
-        const controls = document.createElement('div');
-        controls.className = 'enhanced-controls';
-        controls.style.position = 'absolute';
-        controls.style.top = '0.5rem';
-        controls.style.right = '0.5rem';
-        controls.style.display = 'flex';
-        controls.style.alignItems = 'center';
-        controls.style.gap = '0.5rem';
-        controls.style.zIndex = '10';
-        wrapper.appendChild(controls);
+        if (wrapper && !wrapper.querySelector('.enhanced-controls')) {
+          const controls = document.createElement('div');
+          controls.className = 'enhanced-controls';
+          controls.style.position = 'absolute';
+          controls.style.top = '0.5rem';
+          controls.style.right = '0.5rem';
+          controls.style.display = 'flex';
+          controls.style.alignItems = 'center';
+          controls.style.gap = '0.5rem';
+          controls.style.zIndex = '10';
+          wrapper.appendChild(controls);
 
-        // Language Label
-        if (language) {
-          const label = document.createElement('div');
-          label.innerText = language;
-          label.style.fontSize = '0.75rem';
-          label.style.color = '#888';
-          label.style.fontWeight = '600';
-          label.style.textTransform = 'uppercase';
-          label.style.userSelect = 'none';
-          label.style.pointerEvents = 'none';
-          label.style.transition = 'opacity 0.2s';
+          // Determine Language
+          let language = '';
+          // Check code class
+          let match = code.className.match(/language-(\w+)/);
+          if (match) language = match[1];
 
-          controls.appendChild(label);
+          // Check pre class
+          if (!language) {
+            match = pre.className.match(/language-(\w+)/);
+            if (match) language = match[1];
+          }
 
-          // Reference for hover logic
-          (wrapper as any)._langLabel = label;
+          // Check data attributes
+          if (!language) {
+            language = pre.getAttribute('data-language') || code.getAttribute('data-language') || '';
+          }
+
+          // Render Language Label
+          if (language) {
+            const label = document.createElement('div');
+            label.innerText = language;
+            label.style.fontSize = '0.75rem';
+            label.style.color = '#888';
+            label.style.fontWeight = '600';
+            label.style.textTransform = 'uppercase';
+            label.style.userSelect = 'none';
+            label.style.pointerEvents = 'none';
+            label.style.transition = 'opacity 0.2s';
+            controls.appendChild(label);
+
+            // attach to wrapper for hover handling
+            (wrapper as any)._langLabel = label;
+          }
+
+          const btn = document.createElement('button');
+          btn.innerHTML = COPY_ICON;
+          btn.style.background = 'rgba(255,255,255,0.1)';
+          btn.style.border = '1px solid rgba(255,255,255,0.2)';
+          btn.style.borderRadius = '4px';
+          btn.style.padding = '4px';
+          btn.style.cursor = 'pointer';
+          btn.style.display = 'flex';
+          btn.style.alignItems = 'center';
+          btn.style.justifyContent = 'center';
+          btn.style.color = '#ccc';
+          btn.style.opacity = '0';
+          btn.style.transition = 'all 0.2s';
+          btn.onclick = () => {
+            const text = pre.innerText;
+            navigator.clipboard.writeText(text).then(() => {
+              btn.innerHTML = CHECK_ICON;
+              btn.style.borderColor = '#42b883';
+              window.dispatchEvent(new CustomEvent('show-viewer-toast', { detail: 'Copied to clipboard' }));
+              setTimeout(() => {
+                btn.innerHTML = COPY_ICON;
+                btn.style.borderColor = 'rgba(255,255,255,0.2)';
+              }, 2000);
+            });
+          };
+          controls.appendChild(btn);
+
+          wrapper.addEventListener('mouseenter', () => { btn.style.opacity = '1'; });
+          wrapper.addEventListener('mouseleave', () => { btn.style.opacity = '0'; });
         }
 
-        // Copy Button
-        const btn = document.createElement('button');
-        btn.innerHTML = COPY_ICON;
-        btn.style.background = 'rgba(255,255,255,0.1)';
-        btn.style.border = '1px solid rgba(255,255,255,0.2)';
-        btn.style.borderRadius = '4px';
-        btn.style.padding = '4px';
-        btn.style.cursor = 'pointer';
-        btn.style.display = 'flex';
-        btn.style.alignItems = 'center';
-        btn.style.justifyContent = 'center';
-        btn.style.color = '#ccc';
-        btn.style.transition = 'all 0.2s';
-        btn.style.opacity = '0'; // Hidden by default
-        btn.title = 'Copy code';
 
-        btn.onclick = () => {
-          const text = pre.innerText;
-          navigator.clipboard.writeText(text).then(() => {
-            btn.innerHTML = CHECK_ICON;
-            btn.style.borderColor = '#42b883';
-            window.dispatchEvent(new CustomEvent('show-viewer-toast', { detail: 'Copied to clipboard' }));
-            setTimeout(() => {
-              btn.innerHTML = COPY_ICON;
-              btn.style.borderColor = 'rgba(255,255,255,0.2)';
-            }, 2000);
-          });
-        };
-
-        controls.appendChild(btn);
-        (wrapper as any)._copyBtn = btn;
-
-        // Hover Logic
-        wrapper.addEventListener('mouseenter', () => {
-          if ((wrapper as any)._langLabel) (wrapper as any)._langLabel.style.opacity = '0';
-          if ((wrapper as any)._copyBtn) (wrapper as any)._copyBtn.style.opacity = '1';
-        });
-        wrapper.addEventListener('mouseleave', () => {
-          if ((wrapper as any)._langLabel) (wrapper as any)._langLabel.style.opacity = '1';
-          if ((wrapper as any)._copyBtn) (wrapper as any)._copyBtn.style.opacity = '0';
-        });
-
-        pre.setAttribute('data-enhanced', 'true');
+        pre.setAttribute('data-enhanced-interact', 'true');
       });
     };
 
-    // Run on mount and changes
     const observer = new MutationObserver(enhance);
     if (typeof document !== 'undefined') {
       observer.observe(document.body, { childList: true, subtree: true });
       enhance();
     }
-
     return () => observer.disconnect();
-  }, [router.asPath]); // Re-run on route change just in case
+  }, [router.asPath]);
 
   return null;
 }

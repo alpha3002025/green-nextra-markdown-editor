@@ -731,3 +731,21 @@
     align-items: center;
     gap: 0.5rem;
 }
+
+.codeLine {
+    display: block;
+    padding: 0 0.5rem;
+    border-left: 2px solid transparent; /* Indicators */
+    transition: background-color 0.1s;
+    cursor: pointer;
+}
+
+.codeLine:hover {
+    background-color: rgba(66, 184, 131, 0.15);
+    border-left-color: #42b883;
+}
+
+.codeLineClicked {
+    background-color: rgba(66, 184, 131, 0.25);
+    border-left-color: #33a06f;
+}

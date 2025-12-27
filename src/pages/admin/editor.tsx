@@ -23,8 +23,9 @@ function Toast({ message }: { message: string }) {
 }
 
 // CodeBlock Helper Component
-function CodeBlock({ language, value, children }: { language: string, value: string, children: React.ReactNode }) {
+function CodeBlock({ language, value }: { language: string, value: string }) {
     const [copied, setCopied] = useState(false);
+    const [selectedLine, setSelectedLine] = useState<number | null>(null);
 
     const handleCopy = () => {
         navigator.clipboard.writeText(value).then(() => {
@@ -42,7 +43,24 @@ function CodeBlock({ language, value, children }: { language: string, value: str
             <button className={styles.copyBtn} onClick={handleCopy} title="Copy code">
                 {copied ? <div style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>✓</div> : <Copy size={16} />}
             </button>
-            {children}
+            <SyntaxHighlighter
+                style={vscDarkPlus}
+                language={language}
+                PreTag="div"
+                wrapLines={true}
+                showLineNumbers={true}
+                lineNumberStyle={{ minWidth: '2.5em', paddingRight: '1em', color: '#6e7681', textAlign: 'right' }}
+                lineProps={(lineNumber: number) => {
+                    const isSelected = selectedLine === lineNumber;
+                    return {
+                        style: { display: 'block', cursor: 'pointer' },
+                        className: isSelected ? `${styles.codeLine} ${styles.codeLineClicked}` : styles.codeLine,
+                        onClick: () => setSelectedLine(isSelected ? null : lineNumber)
+                    } as React.HTMLAttributes<HTMLElement>;
+                }}
+            >
+                {value}
+            </SyntaxHighlighter>
         </div>
     )
 }
@@ -754,16 +772,7 @@ export default function Editor() {
                                                 const codeContent = String(children).replace(/\n$/, '')
                                                 if (!inline) {
                                                     return (
-                                                        <CodeBlock language={match ? match[1] : 'text'} value={codeContent}>
-                                                            <SyntaxHighlighter
-                                                                style={vscDarkPlus}
-                                                                language={match ? match[1] : 'text'}
-                                                                PreTag="div"
-                                                                {...props}
-                                                            >
-                                                                {codeContent}
-                                                            </SyntaxHighlighter>
-                                                        </CodeBlock>
+                                                        <CodeBlock language={match ? match[1] : 'text'} value={codeContent} />
                                                     )
                                                 }
                                                 return (
