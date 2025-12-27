@@ -534,7 +534,8 @@
 }
 
 .viewModeSelect {
-    padding: 0.4rem 2rem 0.4rem 0.8rem;
+    padding: 0 2rem 0 0.8rem;
+    line-height: 30px;
     border: 1px solid #42b883;
     /* Default to green to show 'active' selection */
     border-radius: 4px;
@@ -553,6 +554,7 @@
     transition: all 0.2s;
     height: 32px;
     font-weight: 500;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 .viewModeSelect:hover,
