@@ -286,7 +286,7 @@ function EditButton() {
       // Extract slug from /slug
       const parts = router.pathname.split('/').filter(Boolean);
       if (parts.length > 0) {
-        setSlug(parts[0]);
+        setSlug(parts.join('/'));
       } else {
         setSlug("");
       }

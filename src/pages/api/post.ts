@@ -35,13 +35,24 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
             imgDir = path.join(dir, 'img')
         }
         else {
-            // Standard directory-based post logic (legacy support or folders with index.md)
-            dir = path.join(PAGES_DIR, slug as string)
-            // Check for index.md or index.mdx
-            if (fs.existsSync(path.join(dir, 'index.mdx'))) {
-                filePath = path.join(dir, 'index.mdx')
+            // Check if it matches a file directly (e.g. textblock/quotation -> textblock/quotation.mdx)
+            const potentialMdx = path.join(PAGES_DIR, `${slug}.mdx`)
+            const potentialMd = path.join(PAGES_DIR, `${slug}.md`)
+
+            if (fs.existsSync(potentialMdx)) {
+                filePath = potentialMdx
+                dir = path.dirname(filePath)
+            } else if (fs.existsSync(potentialMd)) {
+                filePath = potentialMd
+                dir = path.dirname(filePath)
             } else {
-                filePath = path.join(dir, 'index.md')
+                // Determine if it is a directory with index
+                dir = path.join(PAGES_DIR, slug as string)
+                if (fs.existsSync(path.join(dir, 'index.mdx'))) {
+                    filePath = path.join(dir, 'index.mdx')
+                } else {
+                    filePath = path.join(dir, 'index.md')
+                }
             }
             imgDir = path.join(dir, 'img')
         }
