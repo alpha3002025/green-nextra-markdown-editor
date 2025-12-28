@@ -797,10 +797,10 @@ export default function Editor() {
                                     value={viewMode}
                                     onChange={(e) => setViewMode(e.target.value as 'source' | 'preview' | 'both' | 'live')}
                                 >
-                                    <option value="source">Source Mode</option>
-                                    <option value="preview">Preview Mode</option>
                                     <option value="both">Both Mode</option>
                                     <option value="live">Live Mode</option>
+                                    <option value="preview">Preview Mode</option>
+                                    <option value="source">Source Mode</option>
                                 </select>
                                 <button className={styles.saveBtn} onClick={savePost}>
                                     <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
