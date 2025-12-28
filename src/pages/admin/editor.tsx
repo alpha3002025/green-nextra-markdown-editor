@@ -271,7 +271,7 @@ export default function Editor() {
 
     const loadPost = async (slug: string) => {
         setCurrentPost(slug)
-        const res = await fetch(`/api/post?slug=${slug}`)
+        const res = await fetch(`/api/post?slug=${slug}&t=${Date.now()}`)
         if (res.ok) {
             const data = await res.json()
             setContent(data.content)
@@ -452,29 +452,29 @@ export default function Editor() {
         const newTitle = prompt('Enter new title for sidebar (updates _meta.json):');
         if (!newTitle) return;
 
-        // Path logic:
-        // For a file "foo.md", key is "foo"
-        // For a folder "bar", key is "bar"
-        // But what if it's "index.md"? Key is "index"
-
         let key = node.name.replace(/\.(md|mdx)$/, '');
-        // If it's a file, we want the path to that file to locate the _meta.json in the same dir?
-        // Wait, the API takes `targetPath` which is the path to the item being renamed.
-        // It will find the parent dir and update _meta.json there.
-        // E.g. targetPath="folder/foo.md", key="foo"
+
+        // Determine the PARENT directory which contains the _meta.json responsible for this node
+        const parts = node.path.split('/');
+        parts.pop(); // Remove the node itself
+        const parentPath = parts.join('/');
 
         try {
             const res = await fetch('/api/meta', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path: node.path, key, title: newTitle })
+                body: JSON.stringify({ path: parentPath, key, title: newTitle })
             });
             if (!res.ok) throw new Error('Failed to update title');
-            // Toast or reload? Title update might not reflect in file tree unless we fetch meta titles too.
-            // Currently our file tree only reads FS names.
-            // We might need to update FileNode to include `title` from _meta.json?
-            // For now just success message.
+
             window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Title updated in _meta.json' }))
+
+            // Refresh the relevant _meta.json if it is currently open
+            const metaFile = parentPath ? `${parentPath}/_meta.json` : '_meta.json';
+
+            if (currentPost === metaFile) {
+                loadPost(metaFile);
+            }
         } catch (e: any) {
             alert(e.message);
         }
@@ -504,8 +504,14 @@ export default function Editor() {
 
         try {
             if (action === 'new_file') {
-                const name = prompt('Enter new file name (e.g. hello.md):');
+                let name = prompt('Enter new file name (e.g. hello.md):');
                 if (!name) return;
+
+                // Implicitly add .md if extension missing
+                if (!/\.(md|mdx)$/.test(name)) {
+                    name += '.md';
+                }
+
                 const path = creationBase ? `${creationBase}/${name}` : name;
 
                 const res = await fetch('/api/fs', {
@@ -514,6 +520,27 @@ export default function Editor() {
                     body: JSON.stringify({ type: 'file', path })
                 });
                 if (!res.ok) throw new Error('Failed to create file');
+
+                // Update _meta.json
+                try {
+                    const key = name.replace(/\.(md|mdx)$/, '');
+                    await fetch('/api/meta', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ path: creationBase || '', key, title: key })
+                    });
+
+                    window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Added to _meta.json' }))
+
+                    // Refresh parent/_meta.json if open
+                    const metaPath = creationBase ? `${creationBase}/_meta.json` : '_meta.json';
+                    if (currentPost === metaPath || currentPost === `/${metaPath}`) {
+                        setTimeout(() => loadPost(metaPath), 100);
+                    }
+                } catch (e) {
+                    console.error('Failed to update meta', e);
+                }
+
                 fetchPosts();
             } else if (action === 'new_folder') {
                 const name = prompt('Enter new folder name:');
@@ -526,11 +553,42 @@ export default function Editor() {
                     body: JSON.stringify({ type: 'directory', path })
                 });
                 if (!res.ok) throw new Error('Failed to create folder');
+
+                // Update _meta.json for folder
+                try {
+                    const key = name;
+                    await fetch('/api/meta', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ path: creationBase || '', key, title: key })
+                    });
+
+                    // Also create a _meta.json inside the new folder?
+                    // Usually not strictly required unless we put stuff in it immediately, but let's leave it empty for now, or the user can add it.
+                    // Actually Nextra tends to like having _meta.json.
+                    // Let's rely on manual creation or subsequent actions for inner _meta.json. 
+
+                    window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Added to _meta.json' }))
+
+                    // Refresh parent/_meta.json if open
+                    const metaPath = creationBase ? `${creationBase}/_meta.json` : '_meta.json';
+                    if (currentPost === metaPath || currentPost === `/${metaPath}`) {
+                        setTimeout(() => loadPost(metaPath), 100);
+                    }
+                } catch (e) {
+                    console.error('Failed to update meta', e);
+                }
+
                 fetchPosts();
             } else if (action === 'rename') {
                 const newName = prompt('Enter new name:', node.name);
                 if (!newName || newName === node.name) return;
-                const parent = getParentDir(node);
+
+                // For renaming, we need the parent of the current node (whether file or directory)
+                const parts = node.path.split('/');
+                parts.pop();
+                const parent = parts.join('/');
+
                 const newPath = parent ? `${parent}/${newName}` : newName;
 
                 const res = await fetch('/api/fs', {
@@ -539,9 +597,39 @@ export default function Editor() {
                     body: JSON.stringify({ oldPath: node.path, newPath })
                 });
                 if (!res.ok) throw new Error('Failed to rename');
-                fetchPosts();
-                // If we renamed the current post, we should probably update currentPost or redirect?
-                // For now let's just refresh tree. 
+
+                // Update _meta.json if possible
+                try {
+                    const getMetaKey = (name: string) => name.replace(/\.(md|mdx)$/, '');
+                    const oldKey = getMetaKey(node.name);
+                    const newKey = getMetaKey(newName);
+
+                    await fetch('/api/meta', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            folderPath: parent,
+                            oldKey,
+                            newKey
+                        })
+                    });
+                } catch (e) {
+                    console.error('Failed to update meta', e);
+                }
+
+                await fetchPosts();
+
+                // If we have reduced parent/_meta.json open, reload it to show changes
+                const metaPath = parent ? `${parent}/_meta.json` : '_meta.json';
+                if (currentPost === metaPath || currentPost === `/${metaPath}`) {
+                    setTimeout(() => loadPost(metaPath), 100);
+                }
+
+                // If we renamed the current file being edited, update currentPost
+                if (currentPost === node.path) {
+                    // Update slug/path to new one
+                    setTimeout(() => loadPost(newPath), 100);
+                }
             } else if (action === 'delete') {
                 if (!confirm(`Are you sure you want to delete ${node.name}?`)) return;
 
@@ -551,6 +639,28 @@ export default function Editor() {
                     body: JSON.stringify({ path: node.path })
                 });
                 if (!res.ok) throw new Error('Failed to delete');
+                // Update _meta.json by removing key
+                try {
+                    const parts = node.path.split('/');
+                    parts.pop();
+                    const parent = parts.join('/');
+                    const key = node.name.replace(/\.(md|mdx)$/, '');
+
+                    await fetch('/api/meta', {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ folderPath: parent, key })
+                    });
+
+                    // Refresh parent/_meta.json if open
+                    const metaPath = parent ? `${parent}/_meta.json` : '_meta.json';
+                    if (currentPost === metaPath || currentPost === `/${metaPath}`) {
+                        setTimeout(() => loadPost(metaPath), 100);
+                    }
+                } catch (e) {
+                    console.error('Failed to update meta on delete', e);
+                }
+
                 if (currentPost === node.slug) setCurrentPost(null);
                 fetchPosts();
             }
@@ -681,13 +791,31 @@ export default function Editor() {
                                         <Save size={16} /> Save
                                     </span>
                                 </button>
-                                <button className={styles.cancelBtn} onClick={() => {
-                                    if (currentPost?.endsWith('.json')) {
+                                <button className={styles.cancelBtn} onClick={async () => {
+                                    if (!currentPost) return;
+
+                                    // Check if file still exists via API
+                                    try {
+                                        const res = await fetch(`/api/post?slug=${currentPost}`);
+                                        if (res.status === 404) {
+                                            router.push('/');
+                                            return;
+                                        }
+                                    } catch (e) {
+                                        // On error, default to root or attempt nav? 
+                                        // Let's safe-guard to root if we can't verify.
+                                        router.push('/');
+                                        return;
+                                    }
+
+                                    if (currentPost.endsWith('.json')) {
                                         // For json config files, go to parent folder usually
                                         const parent = currentPost.split('/').slice(0, -1).join('/');
                                         router.push(parent ? `/${parent}` : '/');
                                     } else {
-                                        router.push(currentPost === 'home' ? '/' : `/${currentPost}`);
+                                        // Strip extension for viewer URL
+                                        const viewerPath = currentPost.replace(/\.(md|mdx)$/, '');
+                                        router.push(viewerPath === 'home' || viewerPath === 'index' ? '/' : `/${viewerPath}`);
                                     }
                                 }}>
                                     <ArrowLeft size={16} /> Back

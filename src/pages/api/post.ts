@@ -27,8 +27,15 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
             filePath = path.join(PAGES_DIR, slug)
             dir = path.dirname(filePath)
             imgDir = path.join(dir, 'img')
-        } else {
-            // Standard directory-based post logic
+        }
+        // If slug ends with .md or .mdx, treat it as a direct file path
+        else if (typeof slug === 'string' && /\.(md|mdx)$/.test(slug)) {
+            filePath = path.join(PAGES_DIR, slug)
+            dir = path.dirname(filePath)
+            imgDir = path.join(dir, 'img')
+        }
+        else {
+            // Standard directory-based post logic (legacy support or folders with index.md)
             dir = path.join(PAGES_DIR, slug as string)
             // Check for index.md or index.mdx
             if (fs.existsSync(path.join(dir, 'index.mdx'))) {
