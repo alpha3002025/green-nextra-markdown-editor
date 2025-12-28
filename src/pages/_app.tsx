@@ -293,6 +293,11 @@ function EditButton() {
     }
   }, [router]);
 
+  // Hide in production
+  if (process.env.NODE_ENV === 'production') {
+    return null;
+  }
+
   if (!mounted || !slug) return null;
 
   return (
