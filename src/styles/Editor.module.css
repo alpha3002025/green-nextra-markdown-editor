@@ -533,6 +533,21 @@
     font-size: 0.85rem;
 }
 
+.tocItem.h4 {
+    padding-left: 4rem;
+    font-size: 0.85rem;
+}
+
+.tocItem.h5 {
+    padding-left: 5rem;
+    font-size: 0.85rem;
+}
+
+.tocItem.h6 {
+    padding-left: 6rem;
+    font-size: 0.85rem;
+}
+
 .viewModeSelect {
     padding: 0 2rem 0 0.8rem;
     line-height: 30px;

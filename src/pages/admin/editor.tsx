@@ -213,7 +213,7 @@ export default function Editor() {
             }
             if (inCodeBlock) return;
 
-            const match = line.match(/^(#{1,3})\s+(.+)$/);
+            const match = line.match(/^(#{1,6})\s+(.+)$/);
             if (match) {
                 const level = match[1].length;
                 const text = match[2];
