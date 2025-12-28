@@ -168,6 +168,12 @@ export default function Editor() {
     const [tocWidth, setTocWidth] = useState(250);
     const [isResizing, setIsResizing] = useState(false);
 
+    const [sidebarWidth, setSidebarWidth] = useState(260);
+    const [isSidebarResizing, setIsSidebarResizing] = useState(false);
+
+    const [editorRatio, setEditorRatio] = useState(0.5);
+    const [isPaneResizing, setIsPaneResizing] = useState(false);
+
     // Context Menu State
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number, node: FileNode } | null>(null);
 
@@ -224,7 +230,7 @@ export default function Editor() {
         setToc(headers);
     }, [content]);
 
-    // Resizing Logic
+    // Resizing Logic (TOC)
     const startResizing = useCallback((mouseDownEvent: React.MouseEvent) => {
         mouseDownEvent.preventDefault();
         setIsResizing(true);
@@ -247,14 +253,75 @@ export default function Editor() {
         [isResizing]
     );
 
+    // Resizing Logic (Sidebar)
+    const startSidebarResizing = useCallback((mouseDownEvent: React.MouseEvent) => {
+        mouseDownEvent.preventDefault();
+        setIsSidebarResizing(true);
+    }, []);
+
+    const stopSidebarResizing = useCallback(() => {
+        setIsSidebarResizing(false);
+    }, []);
+
+    const resizeSidebar = useCallback(
+        (mouseMoveEvent: MouseEvent) => {
+            if (isSidebarResizing) {
+                // Calculate new width based on mouse position
+                const newWidth = mouseMoveEvent.clientX;
+                if (newWidth > 150 && newWidth < 600) {
+                    setSidebarWidth(newWidth);
+                }
+            }
+        },
+        [isSidebarResizing]
+    );
+
+    // Resizing Logic (Editor/Preview Pane Split)
+    const startPaneResizing = useCallback((mouseDownEvent: React.MouseEvent) => {
+        mouseDownEvent.preventDefault();
+        setIsPaneResizing(true);
+    }, []);
+
+    const stopPaneResizing = useCallback(() => {
+        setIsPaneResizing(false);
+    }, []);
+
+    const resizePane = useCallback(
+        (mouseMoveEvent: MouseEvent) => {
+            if (isPaneResizing) {
+                const workspace = document.getElementById('workspace-container');
+                if (workspace) {
+                    const rect = workspace.getBoundingClientRect();
+                    // Calculate ratio based on mouse position relative to workspace width
+                    // mouseX - workspaceLeft = width of left pane
+                    const relativeX = mouseMoveEvent.clientX - rect.left;
+                    const newRatio = relativeX / rect.width;
+
+                    if (newRatio > 0.2 && newRatio < 0.8) {
+                        setEditorRatio(newRatio);
+                    }
+                }
+            }
+        },
+        [isPaneResizing]
+    );
+
     useEffect(() => {
         window.addEventListener("mousemove", resize);
         window.addEventListener("mouseup", stopResizing);
+        window.addEventListener("mousemove", resizeSidebar);
+        window.addEventListener("mouseup", stopSidebarResizing);
+        window.addEventListener("mousemove", resizePane);
+        window.addEventListener("mouseup", stopPaneResizing);
         return () => {
             window.removeEventListener("mousemove", resize);
             window.removeEventListener("mouseup", stopResizing);
+            window.removeEventListener("mousemove", resizeSidebar);
+            window.removeEventListener("mouseup", stopSidebarResizing);
+            window.removeEventListener("mousemove", resizePane);
+            window.removeEventListener("mouseup", stopPaneResizing);
         };
-    }, [resize, stopResizing]);
+    }, [resize, stopResizing, resizeSidebar, stopSidebarResizing, resizePane, stopPaneResizing]);
 
     const fetchPosts = async () => {
         try {
@@ -694,7 +761,20 @@ export default function Editor() {
             <Toast message={toastMsg} />
 
             {/* Sidebar (File Explorer) */}
-            <div className={`${styles.sidebar} ${!isSidebarOpen ? styles.closed : ''}`}>
+            <div
+                className={styles.sidebar}
+                style={{
+                    width: sidebarWidth,
+                    marginLeft: isSidebarOpen ? 0 : -sidebarWidth,
+                    position: 'relative',
+                    transition: isSidebarResizing ? 'none' : 'margin-left 0.3s ease'
+                }}
+            >
+                <div
+                    className={styles.resizer}
+                    style={{ left: 'auto', right: 0 }}
+                    onMouseDown={startSidebarResizing}
+                />
                 <div className={styles.sidebarHeader}>
                     <FileText size={20} />
                     <span>Explorer</span>
@@ -892,6 +972,7 @@ export default function Editor() {
 
                 {/* Editor Workspace */}
                 <div
+                    id="workspace-container"
                     className={styles.workspace}
                     onDrop={handleDrop}
                     onDragOver={handleDragOver}
@@ -902,7 +983,8 @@ export default function Editor() {
                                 className={`${styles.pane} ${styles.editorPane}`}
                                 style={{
                                     display: (viewMode === 'preview' || viewMode === 'live') ? 'none' : 'flex',
-                                    borderRight: viewMode === 'both' ? '1px solid #e9ecef' : 'none'
+                                    borderRight: viewMode === 'both' ? 'none' : '1px solid #e9ecef',
+                                    flex: viewMode === 'both' ? `${editorRatio}` : '1'
                                 }}
                             >
                                 <textarea
@@ -913,10 +995,19 @@ export default function Editor() {
                                     placeholder="Start writing..."
                                 />
                             </div>
+
+                            {viewMode === 'both' && (
+                                <div
+                                    className={styles.paneResizer}
+                                    onMouseDown={startPaneResizing}
+                                />
+                            )}
+
                             <div
                                 className={`${styles.pane} ${styles.previewPane}`}
                                 style={{
-                                    display: (viewMode === 'source' || viewMode === 'live') ? 'none' : 'flex'
+                                    display: (viewMode === 'source' || viewMode === 'live') ? 'none' : 'flex',
+                                    flex: viewMode === 'both' ? `${1 - editorRatio}` : '1'
                                 }}
                             >
                                 <div className={`${styles.previewContent} prose max-w-none`}>
