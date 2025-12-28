@@ -543,6 +543,11 @@ export default function Editor() {
                 }
 
                 fetchPosts();
+
+                // Automatically open the new file
+                setTimeout(() => {
+                    loadPost(path);
+                }, 200);
             } else if (action === 'new_folder') {
                 const name = prompt('Enter new folder name:');
                 if (!name) return;
