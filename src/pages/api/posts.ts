@@ -29,6 +29,19 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
             const items = fs.readdirSync(dir, { withFileTypes: true })
             const nodes: FileNode[] = []
 
+            // Read _meta.json for sorting
+            let metaKeys: string[] = []
+            try {
+                const metaPath = path.join(dir, '_meta.json')
+                if (fs.existsSync(metaPath)) {
+                    const metaContent = fs.readFileSync(metaPath, 'utf8')
+                    const meta = JSON.parse(metaContent)
+                    metaKeys = Object.keys(meta)
+                }
+            } catch (e) {
+                // ignore error
+            }
+
             for (const item of items) {
                 if (exclude.includes(item.name)) continue
 
@@ -42,17 +55,11 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
                         children
                     })
                 } else if (/\.(md|mdx|json)$/.test(item.name)) {
-                    // It's a markdown or json file (specifically _meta.json)
-                    // If it is _meta.json, we still want it to be editable
-                    // Calculate slug for Nextra routing (though _meta.json isn't a route)
                     let slug = relativePath
                     if (item.name === 'index.md' || item.name === 'index.mdx') {
                         slug = relativePath || 'home'
                     } else {
-                        const baseName = item.name.replace(/\.(md|mdx|json)$/, '')
                         slug = relativePath ? path.join(relativePath, item.name) : item.name
-                        // Note: For _meta.json, slug will be path/to/_meta.json 
-                        // The loadPost logic handles slugs roughly
                     }
 
                     nodes.push({
@@ -64,15 +71,27 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
                 }
             }
 
-            // Sort: directories first, then files
+            // Sort: _meta order -> directories -> files (index priorities handled inside fallback if needed, but usually meta dictates)
             return nodes.sort((a, b) => {
-                if (a.type === b.type) {
-                    // prioritized index files
-                    if (a.name.startsWith('index.')) return -1
-                    if (b.name.startsWith('index.')) return 1
-                    return a.name.localeCompare(b.name)
-                }
-                return a.type === 'directory' ? -1 : 1
+                const getKey = (name: string) => name.replace(/\.(md|mdx|json)$/, '')
+                const keyA = getKey(a.name)
+                const keyB = getKey(b.name)
+
+                const idxA = metaKeys.indexOf(keyA)
+                const idxB = metaKeys.indexOf(keyB)
+
+                if (idxA !== -1 && idxB !== -1) return idxA - idxB
+                if (idxA !== -1) return -1
+                if (idxB !== -1) return 1
+
+                // Fallback: Directories first, then alphabetical
+                if (a.type !== b.type) return a.type === 'directory' ? -1 : 1
+
+                // Prioritize index if not in meta
+                if (a.name.startsWith('index.')) return -1
+                if (b.name.startsWith('index.')) return 1
+
+                return a.name.localeCompare(b.name)
             })
         }
 
