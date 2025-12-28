@@ -1,5 +1,14 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/pages/api-reference/create-next-app).
 
+<br/>
+
+# Introduction
+- This project is a customized version of Nextra (https://github.com/shuding/nextra).
+- The official GitHub repository for the current markdown-editor project blog is https://github.com/alpha3002025/green-nextra-markdown-editor.
+
+<br/>
+<br/>
+
 ## Getting Started
 
 First, run the development server:

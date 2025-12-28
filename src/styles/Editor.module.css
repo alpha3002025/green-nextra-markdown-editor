@@ -655,7 +655,11 @@
 
 .liveEditor :global(.token.code) {
     font-family: "Fira Code", monospace;
-    color: #e83e8c;
+    color: #42b883;
+    /* Vue Green */
+    background-color: rgba(66, 184, 131, 0.1);
+    border-radius: 4px;
+    padding: 0.1rem 0.3rem;
 }
 
 .liveEditor :global(.token.url) {

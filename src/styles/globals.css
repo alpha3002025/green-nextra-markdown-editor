@@ -78,3 +78,23 @@ blockquote {
   quotes: none !important;
   /* Remove standard quotes if unwanted */
 }
+
+/* Inline Code Style - Vue Green Theme */
+/* Target code elements that are NOT inside pre, NOT inside the editor's code block wrapper, and do NOT have a language class (common for blocks) */
+.nx-prose :not(pre)>code:not([class*="language-"]),
+.prose :not(pre)>code:not([class*="language-"]),
+.nextra-content :not(pre)>code:not([class*="language-"]),
+code:not(pre code):not([class*="language-"]) {
+  color: #42b883 !important;
+  background-color: rgba(66, 184, 131, 0.1) !important;
+  border-radius: 4px;
+  padding: 0.2rem 0.4rem;
+  font-weight: 600;
+  font-family: 'Fira Code', monospace;
+}
+
+/* Ensure editor code blocks are protected if they fall through (e.g. text/plain blocks) */
+.codeBlockWrapper code {
+  color: inherit !important;
+  background-color: transparent !important;
+}

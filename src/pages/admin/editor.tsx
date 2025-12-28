@@ -15,6 +15,7 @@ import LiveEditor from 'react-simple-code-editor';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-markdown';
 import 'prismjs/themes/prism.css'; // Import base Prism styles
+import rehypeRaw from 'rehype-raw'; // Support HTML in markdown
 import 'prismjs/themes/prism.css'; // Import base Prism styles
 import { YouTubeEmbed, getYouTubeId } from '@/components/YouTubeEmbed';
 import { LinkPreview } from '@/components/LinkPreview';
@@ -893,6 +894,7 @@ export default function Editor() {
                                 <div className={`${styles.previewContent} prose max-w-none`}>
                                     <ReactMarkdown
                                         remarkPlugins={[remarkGfm]}
+                                        rehypePlugins={[rehypeRaw]}
                                         urlTransform={(url) => {
                                             if (url.startsWith('./img/') && currentPost) {
                                                 return `/api/image_preview?slug=${currentPost}&file=${url.replace('./img/', '')}`
@@ -904,11 +906,18 @@ export default function Editor() {
                                             code({ node, inline, className, children, ...props }: any) {
                                                 const match = /language-(\w+)/.exec(className || '')
                                                 const codeContent = String(children).replace(/\n$/, '')
-                                                if (!inline) {
+                                                if (!inline && match) {
+                                                    // It's a code block with language
                                                     return (
-                                                        <CodeBlock language={match ? match[1] : 'text'} value={codeContent} />
+                                                        <CodeBlock language={match[1]} value={codeContent} />
+                                                    )
+                                                } else if (!inline && codeContent.includes('\n')) {
+                                                    // It's a multi-line code block without explicit language
+                                                    return (
+                                                        <CodeBlock language="text" value={codeContent} />
                                                     )
                                                 }
+                                                // Otherwise it's inline code
                                                 return (
                                                     <code className={className} {...props}>
                                                         {children}

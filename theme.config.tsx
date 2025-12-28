@@ -2,11 +2,14 @@ import React from 'react'
 import { DocsThemeConfig } from 'nextra-theme-docs'
 
 const config: DocsThemeConfig = {
+    // (1)
     logo: <span style={{ fontWeight: 800 }}>Vue-like Docs</span>,
     project: {
-        link: 'https://github.com/shuding/nextra',
+        // (2)
+        link: 'https://github.com/alpha3002025/green-nextra-markdown-editor',
     },
-    docsRepositoryBase: 'https://github.com/shuding/nextra',
+    // (2)
+    docsRepositoryBase: 'https://github.com/alpha3002025/green-nextra-markdown-editor',
     footer: {
         text: 'Vue-like Docs Style',
     },
@@ -14,6 +17,7 @@ const config: DocsThemeConfig = {
         <>
             <link rel="icon" type="image/png" href="/favicon.png" />
             <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            {/* (1) */}
             <meta property="og:title" content="Vue-like Docs" />
         </>
     ),
