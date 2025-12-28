@@ -53,3 +53,28 @@
   background-color: rgba(66, 184, 131, 0.2);
   border-left-color: #33a06f;
 }
+
+/* Global Markdown Styles (Preview & Viewer) */
+blockquote {
+  border-left: 4px solid #42b883;
+  background-color: #f0f8f5;
+  color: #666;
+  font-style: italic;
+  margin: 1.5em 0;
+  padding: 0.5em 1em;
+  border-radius: 0 4px 4px 0;
+}
+
+/* Ensure Nextra/Prose overrides don't hide this */
+/* Ensure Nextra/Prose overrides don't hide this */
+.nx-prose blockquote,
+.prose blockquote,
+.nextra-content blockquote {
+  border-left-color: #42b883 !important;
+  background-color: #f0f8f5 !important;
+  color: #666 !important;
+  padding: 0.5em 1em !important;
+  font-style: italic !important;
+  quotes: none !important;
+  /* Remove standard quotes if unwanted */
+}

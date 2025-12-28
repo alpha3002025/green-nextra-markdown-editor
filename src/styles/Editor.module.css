@@ -659,7 +659,7 @@
 }
 
 .liveEditor :global(.token.url) {
-    color: #0366d6;
+    color: #42b883;
     text-decoration: underline;
 }
 
@@ -670,8 +670,16 @@
 
 .liveEditor :global(.token.blockquote) {
     color: #6a737d;
-    border-left: 4px solid #dfe2e5;
-    padding-left: 1rem;
+    /* Revert to original grey-ish or neutral */
+    border-left: 4px solid #42b883;
+    /* Keep Vue Green Border */
+    background-color: #f0f8f5;
+    /* Keep Light green bg */
+    padding: 0.5rem 1rem;
+    margin: 1rem 0;
+    border-radius: 0 4px 4px 0;
+    font-style: italic;
+    /* Nextra usually has italic quotes, this is fine */
     display: block;
 }
 
@@ -735,7 +743,8 @@
 .codeLine {
     display: block;
     padding: 0 0.5rem;
-    border-left: 2px solid transparent; /* Indicators */
+    border-left: 2px solid transparent;
+    /* Indicators */
     transition: background-color 0.1s;
     cursor: pointer;
 }

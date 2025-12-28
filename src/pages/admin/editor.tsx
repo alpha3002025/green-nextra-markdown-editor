@@ -933,7 +933,7 @@ export default function Editor() {
                                                 if (videoId && isRawLink) {
                                                     return (
                                                         <>
-                                                            <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: '#0366d6', textDecoration: 'underline' }}>{children}</a>
+                                                            <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: '#42b883', textDecoration: 'underline' }}>{children}</a>
                                                             <YouTubeEmbed url={url} />
                                                         </>
                                                     );
@@ -943,13 +943,13 @@ export default function Editor() {
                                                 if (isRawLink && (url.startsWith('http://') || url.startsWith('https://'))) {
                                                     return (
                                                         <>
-                                                            <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: '#0366d6', textDecoration: 'underline' }}>{children}</a>
+                                                            <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: '#42b883', textDecoration: 'underline' }}>{children}</a>
                                                             <LinkPreview url={url} />
                                                         </>
                                                     );
                                                 }
 
-                                                return <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: '#0366d6', textDecoration: 'underline' }}>{children}</a>;
+                                                return <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: '#42b883', textDecoration: 'underline' }}>{children}</a>;
                                             }
                                         }}
                                     >
