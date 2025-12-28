@@ -640,11 +640,14 @@ export default function Editor() {
                     body: JSON.stringify({ path: node.path })
                 });
                 if (!res.ok) throw new Error('Failed to delete');
+                // Calculate parent and meta path for redirection
+                const parts = node.path.split('/');
+                parts.pop();
+                const parent = parts.join('/');
+                const metaPath = parent ? `${parent}/_meta.json` : '_meta.json';
+
                 // Update _meta.json by removing key
                 try {
-                    const parts = node.path.split('/');
-                    parts.pop();
-                    const parent = parts.join('/');
                     const key = node.name.replace(/\.(md|mdx)$/, '');
 
                     await fetch('/api/meta', {
@@ -654,7 +657,6 @@ export default function Editor() {
                     });
 
                     // Refresh parent/_meta.json if open
-                    const metaPath = parent ? `${parent}/_meta.json` : '_meta.json';
                     if (currentPost === metaPath || currentPost === `/${metaPath}`) {
                         setTimeout(() => loadPost(metaPath), 100);
                     }
@@ -662,8 +664,16 @@ export default function Editor() {
                     console.error('Failed to update meta on delete', e);
                 }
 
-                if (currentPost === node.slug) setCurrentPost(null);
-                fetchPosts();
+                // If the deleted file was the one currently open, redirect to _meta.json
+                if (currentPost === node.slug) {
+                    setTimeout(() => {
+                        loadPost(metaPath);
+                        fetchPosts();
+                    }, 100);
+                } else {
+                    // If we deleted something else, just refresh tree
+                    fetchPosts();
+                }
             }
         } catch (e: any) {
             alert(e.message);
@@ -810,9 +820,22 @@ export default function Editor() {
                                     }
 
                                     if (currentPost.endsWith('.json')) {
-                                        // For json config files, go to parent folder usually
+                                        // For json config files, check if parent folder has an index page
                                         const parent = currentPost.split('/').slice(0, -1).join('/');
-                                        router.push(parent ? `/${parent}` : '/');
+                                        const targetPath = parent ? parent : 'home';
+
+                                        try {
+                                            // Check if the parent path maps to a valid page (index)
+                                            const res = await fetch(`/api/post?slug=${targetPath}`);
+                                            if (res.ok) {
+                                                router.push(parent ? `/${parent}` : '/');
+                                            } else {
+                                                // If parent folder has no index, go to root
+                                                router.push('/');
+                                            }
+                                        } catch {
+                                            router.push('/');
+                                        }
                                     } else {
                                         // Strip extension for viewer URL
                                         const viewerPath = currentPost.replace(/\.(md|mdx)$/, '');
