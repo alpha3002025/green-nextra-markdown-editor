@@ -429,6 +429,37 @@ export default function Editor() {
         }
     }
 
+    const handlePaste = async (e: React.ClipboardEvent) => {
+        const items = e.clipboardData.items;
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (item.type.startsWith('image/')) {
+                e.preventDefault();
+                const file = item.getAsFile();
+                if (!file || !currentPost) return;
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                setStatus('Uploading...');
+                const res = await fetch(`/api/upload?slug=${currentPost}`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (res.ok) {
+                    const { filename } = await res.json();
+                    insertText(`![](./img/${filename})`);
+                    setStatus('Image uploaded');
+                    window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Image uploaded successfully' }));
+                } else {
+                    setStatus('Upload failed');
+                    window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Upload failed' }));
+                }
+            }
+        }
+    };
+
     const insertText = (textToInsert: string) => {
         const textarea = textareaRef.current
         if (!textarea) {
@@ -992,6 +1023,7 @@ export default function Editor() {
                                     className={styles.textarea}
                                     value={content}
                                     onChange={e => setContent(e.target.value)}
+                                    onPaste={handlePaste}
                                     placeholder="Start writing..."
                                 />
                             </div>
@@ -1099,6 +1131,7 @@ export default function Editor() {
                                         padding={30}
                                         className={styles.liveEditor}
                                         textareaClassName={styles.liveEditorTextarea}
+                                        onPaste={handlePaste}
                                         style={{
                                             fontFamily: '"Fira Code", "Fira Mono", monospace',
                                             fontSize: 16,

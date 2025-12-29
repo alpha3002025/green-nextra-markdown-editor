@@ -21,7 +21,29 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     if (slug === 'home') {
         filePath = path.join(PAGES_DIR, 'img', file as string)
     } else {
-        filePath = path.join(PAGES_DIR, slug as string, 'img', file as string)
+        // Resolve directory similar to upload/post logic
+        let postDir = path.join(PAGES_DIR, slug as string)
+
+        // If postDir is not a directory, check if it is a file-based slug
+        let isFile = false;
+        try {
+            if (fs.existsSync(postDir) && fs.statSync(postDir).isFile()) {
+                isFile = true;
+            } else if (!fs.existsSync(postDir)) {
+                // Check for potential file extensions to identify if the slug refers to a file
+                if (fs.existsSync(postDir + '.md') || fs.existsSync(postDir + '.mdx')) {
+                    isFile = true;
+                }
+            }
+        } catch (e) {
+            // ignore error
+        }
+
+        if (isFile) {
+            postDir = path.dirname(postDir);
+        }
+
+        filePath = path.join(postDir, 'img', file as string)
     }
     if (!fs.existsSync(filePath)) return res.status(404).end()
 

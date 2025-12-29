@@ -78,6 +78,40 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Post not found' })
 
         fs.writeFileSync(filePath, content)
+
+        // Cleanup unused images
+        try {
+            if (fs.existsSync(imgDir)) {
+                // Find all used images in content
+                const usedImages = new Set<string>();
+                // Matches ./img/filename.ext or img/filename.ext
+                // The editor inserts ![](./img/filename)
+                const regex = /\((\.\/)?img\/([^)]+)\)/g;
+                let match;
+                while ((match = regex.exec(content)) !== null) {
+                    usedImages.add(match[2]);
+                }
+
+                const allImages = fs.readdirSync(imgDir);
+                allImages.forEach(file => {
+                    // Filter only image files to be safe
+                    if (/\.(png|jpg|jpeg|gif|svg|webp)$/i.test(file)) {
+                        if (!usedImages.has(file)) {
+                            // Delete unused
+                            try {
+                                fs.unlinkSync(path.join(imgDir, file));
+                                console.log(`Deleted unused image: ${file}`);
+                            } catch (err) {
+                                console.error(`Failed to delete unused image ${file}`, err);
+                            }
+                        }
+                    }
+                });
+            }
+        } catch (e) {
+            console.error('Failed to cleanup images', e);
+        }
+
         return res.status(200).json({ success: true })
     }
 

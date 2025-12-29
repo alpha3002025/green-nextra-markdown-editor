@@ -822,3 +822,9 @@
 .previewContent ul ul ul {
     list-style-type: square;
 }
+
+.previewContent img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+}
