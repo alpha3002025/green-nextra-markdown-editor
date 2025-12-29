@@ -82,15 +82,35 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         // Cleanup unused images
         try {
             if (fs.existsSync(imgDir)) {
-                // Find all used images in content
+                // Find all used images in ALL markdown files in the same directory
                 const usedImages = new Set<string>();
-                // Matches ./img/filename.ext or img/filename.ext
-                // The editor inserts ![](./img/filename)
                 const regex = /\((\.\/)?img\/([^)]+)\)/g;
+
+                // 1. Scan the current file content being saved
                 let match;
                 while ((match = regex.exec(content)) !== null) {
                     usedImages.add(match[2]);
                 }
+
+                // 2. Scan other MD/MDX files in the same directory (where the images are)
+                // 'dir' is the directory containing the markdown file(s) and the 'img' folder
+                const siblingFiles = fs.readdirSync(dir).filter(f => /\.(md|mdx)$/.test(f));
+
+                siblingFiles.forEach(file => {
+                    // Skip the current file as we already processed the *new* content above
+                    // We must compare full paths or filenames. 
+                    const fullAuthPath = path.join(dir, file);
+                    if (fullAuthPath === filePath) return;
+
+                    try {
+                        const otherContent = fs.readFileSync(fullAuthPath, 'utf8');
+                        while ((match = regex.exec(otherContent)) !== null) {
+                            usedImages.add(match[2]);
+                        }
+                    } catch (readErr) {
+                        console.error(`Failed to read sibling file ${file} for image cleanup ref check`, readErr);
+                    }
+                });
 
                 const allImages = fs.readdirSync(imgDir);
                 allImages.forEach(file => {
