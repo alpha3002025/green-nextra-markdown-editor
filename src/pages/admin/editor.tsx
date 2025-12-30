@@ -6,7 +6,7 @@ import { useRouter } from 'next/router'
 import styles from '../../styles/Editor.module.css'
 import {
     Bold, Italic, Heading1, Heading2, List, ListOrdered,
-    Quote, Link as LinkIcon, Image as ImageIcon, Code, Strikethrough,
+    Quote, Link as LinkIcon, Image as ImageIcon, Code, Strikethrough, Braces,
     FileText, Menu, ChevronLeft, Save, Plus, Copy, X, ArrowLeft
 } from 'lucide-react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -503,6 +503,9 @@ export default function Editor() {
             case 'strikethrough':
                 newText = text.substring(0, start) + `~${selectedText}~` + text.substring(end)
                 break
+            case 'inline-code':
+                newText = text.substring(0, start) + `\`${selectedText}\`` + text.substring(end)
+                break
             case 'h1':
                 newText = text.substring(0, start) + `# ${selectedText}` + text.substring(end)
                 break
@@ -979,6 +982,9 @@ export default function Editor() {
                         </button>
                         <button className={styles.toolBtn} onClick={() => formatText('strikethrough')} title="Strikethrough">
                             <Strikethrough size={18} />
+                        </button>
+                        <button className={styles.toolBtn} onClick={() => formatText('inline-code')} title="Inline Code">
+                            <Braces size={18} />
                         </button>
                         <button className={styles.toolBtn} onClick={() => formatText('h1')} title="Heading 1">
                             <Heading1 size={18} />
