@@ -460,6 +460,41 @@ export default function Editor() {
         }
     };
 
+    const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        const textarea = e.currentTarget;
+        const { selectionStart, selectionEnd } = textarea;
+        const hasSelection = selectionStart !== selectionEnd;
+
+        // Map of keys to their wrapping pairs
+        const keyMap: { [key: string]: [string, string] } = {
+            '(': ['(', ')'],
+            '{': ['{', '}'],
+            '[': ['[', ']'],
+            '`': ['`', '`'],
+            '"': ['"', '"'],
+            "'": ["'", "'"]
+        };
+
+        if (hasSelection && keyMap[e.key]) {
+            e.preventDefault();
+            const [open, close] = keyMap[e.key];
+            const text = content;
+            const newText = text.substring(0, selectionStart) +
+                open + text.substring(selectionStart, selectionEnd) + close +
+                text.substring(selectionEnd);
+
+            setContent(newText);
+
+            // Restore selection to the original inner text (now wrapped)
+            setTimeout(() => {
+                if (textareaRef.current) {
+                    textareaRef.current.selectionStart = selectionStart + 1;
+                    textareaRef.current.selectionEnd = selectionEnd + 1;
+                }
+            }, 0);
+        }
+    };
+
     const insertText = (textToInsert: string) => {
         const textarea = textareaRef.current
         if (!textarea) {
@@ -1036,6 +1071,7 @@ export default function Editor() {
                                     value={content}
                                     onChange={e => setContent(e.target.value)}
                                     onPaste={handlePaste}
+                                    onKeyDown={handleTextareaKeyDown}
                                     placeholder="Start writing..."
                                 />
                             </div>
