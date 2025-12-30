@@ -389,7 +389,10 @@ export default function Editor() {
 
         if (res.ok) {
             const { filename } = await res.json()
-            insertText(`![](./img/${filename})`)
+
+            const docName = currentPost.split('/').pop()?.replace(/\.(md|mdx)$/, '') || '';
+            const imagePath = (currentPost === 'home' || !docName) ? `./img/${filename}` : `./img/${docName}/${filename}`;
+            insertText(`![](${imagePath})`)
             setStatus('Image uploaded')
         } else {
             setStatus('Upload failed')
@@ -420,7 +423,10 @@ export default function Editor() {
 
         if (res.ok) {
             const { filename } = await res.json()
-            insertText(`![](./img/${filename})`)
+
+            const docName = currentPost.split('/').pop()?.replace(/\.(md|mdx)$/, '') || '';
+            const imagePath = (currentPost === 'home' || !docName) ? `./img/${filename}` : `./img/${docName}/${filename}`;
+            insertText(`![](${imagePath})`)
             setStatus('Image uploaded')
             window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Image uploaded successfully' }))
         } else {
@@ -449,7 +455,10 @@ export default function Editor() {
 
                 if (res.ok) {
                     const { filename } = await res.json();
-                    insertText(`![](./img/${filename})`);
+
+                    const docName = currentPost.split('/').pop()?.replace(/\.(md|mdx)$/, '') || '';
+                    const imagePath = (currentPost === 'home' || !docName) ? `./img/${filename}` : `./img/${docName}/${filename}`;
+                    insertText(`![](${imagePath})`);
                     setStatus('Image uploaded');
                     window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Image uploaded successfully' }));
                 } else {
