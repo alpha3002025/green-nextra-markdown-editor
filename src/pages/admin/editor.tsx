@@ -517,7 +517,7 @@ export default function Editor() {
                 newText = text.substring(0, start) + `[${linkText}](url)` + text.substring(end)
                 break
             case 'list':
-                newText = text.substring(0, start) + `- ${selectedText}` + text.substring(end)
+                newText = text.substring(0, start) + selectedText.split('\n').map(line => `- ${line}`).join('\n') + text.substring(end)
                 break
         }
 
