@@ -160,6 +160,7 @@ export default function Editor() {
     const [posts, setPosts] = useState<FileNode[]>([])
     const [currentPost, setCurrentPost] = useState<string | null>(null)
     const [content, setContent] = useState('')
+    const [initialContent, setInitialContent] = useState('')
     const [status, setStatus] = useState('')
     const [isSidebarOpen, setSidebarOpen] = useState(true)
     const [toastMsg, setToastMsg] = useState('')
@@ -343,6 +344,7 @@ export default function Editor() {
         if (res.ok) {
             const data = await res.json()
             setContent(data.content)
+            setInitialContent(data.content)
             router.push(`/admin/editor?open=${slug}`, undefined, { shallow: true })
         }
     }
@@ -357,6 +359,7 @@ export default function Editor() {
         })
         if (res.ok) {
             setStatus('Saved')
+            setInitialContent(content)
             setTimeout(() => setStatus(''), 2000)
             window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Saved successfully' }))
         } else {
@@ -970,6 +973,36 @@ export default function Editor() {
                                 </button>
                                 <button className={styles.cancelBtn} onClick={async () => {
                                     if (!currentPost) return;
+
+                                    // Revert content to initial state and cleanup any images uploaded during this session
+                                    // by saving the initial content. The server-side logic cleans up images not used in the saved content.
+                                    if (initialContent !== content) {
+                                        await fetch(`/api/post?slug=${currentPost}`, {
+                                            method: 'PUT',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ content: initialContent }) // Revert to initial
+                                        });
+                                    } else {
+                                        // Even if content didn't change, we might want to trigger cleanup just in case?
+                                        // But usually if content didn't change, no new images were added meaningfully or they were already there.
+                                        // However, if user uploaded image A, then deleted it from text, then uploaded B. Content matches initial? No.
+                                        // If user uploaded image A, then deleted it. Content matches initial. Image A is orphaned.
+                                        // So we should probably always sync/cleanup if we want to be strict, or just trust the daily/periodic cleanup?
+                                        // The user said "Back 버튼 클릭시 클릭 직전 까지 수정을 위해 업로드한 이미지는 삭제하도록 하세요."
+                                        // If I uploaded an image but didn't save, it is on the server.
+                                        // If I hit Back, I want that image gone.
+                                        // Saving 'initialContent' achieves this because that image is not in 'initialContent'.
+
+                                        // Edge case: what if I uploaded an image, then deleted the line from editor?
+                                        // Content matches initial (roughly). 
+                                        // But the image file is there.
+                                        // So yes, saving initialContent is safe and robust.
+                                        await fetch(`/api/post?slug=${currentPost}`, {
+                                            method: 'PUT',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ content: initialContent })
+                                        });
+                                    }
 
                                     // Check if file still exists via API
                                     try {
