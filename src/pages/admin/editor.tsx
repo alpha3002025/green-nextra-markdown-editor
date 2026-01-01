@@ -19,6 +19,9 @@ import rehypeRaw from 'rehype-raw'; // Support HTML in markdown
 import 'prismjs/themes/prism.css'; // Import base Prism styles
 import { YouTubeEmbed, getYouTubeId } from '@/components/YouTubeEmbed';
 import { LinkPreview } from '@/components/LinkPreview';
+import { Inter } from 'next/font/google'
+
+const inter = Inter({ subsets: ['latin'] })
 
 // Toast Component
 function Toast({ message }: { message: string }) {
@@ -837,7 +840,7 @@ export default function Editor() {
     }
 
     return (
-        <div className={styles.container}>
+        <div className={`${styles.container} ${inter.className}`}>
             <Head>
                 <title>Editor - Green Nextra</title>
             </Head>
