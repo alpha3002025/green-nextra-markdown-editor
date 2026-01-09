@@ -55,6 +55,7 @@ function CodeBlock({ language, value }: { language: string, value: string }) {
                 language={language}
                 PreTag="div"
                 wrapLines={true}
+                wrapLongLines={true}
                 showLineNumbers={true}
                 lineNumberStyle={{ minWidth: '2.5em', paddingRight: '1em', color: '#6e7681', textAlign: 'right' }}
                 lineProps={(lineNumber: number) => {

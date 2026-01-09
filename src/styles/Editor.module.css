@@ -442,6 +442,15 @@
 .codeBlockWrapper code {
     background-color: transparent !important;
     padding: 0 !important;
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+}
+
+.codeBlockWrapper pre {
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
 }
 
 /* Toast */
