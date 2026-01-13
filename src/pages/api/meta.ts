@@ -191,5 +191,54 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
 
+    if (req.method === 'PATCH') {
+        const { folderPath, order } = req.body
+
+        if (folderPath === undefined || !Array.isArray(order)) {
+            return res.status(400).json({ error: 'Missing parameters or invalid order' })
+        }
+
+        const fullDir = path.join(PAGES_DIR, folderPath === '/' ? '' : folderPath)
+        if (!fullDir.startsWith(PAGES_DIR)) {
+            return res.status(400).json({ error: 'Invalid path' })
+        }
+
+        const metaFilePath = path.join(fullDir, '_meta.json')
+
+        if (!fs.existsSync(metaFilePath)) {
+            return res.status(404).json({ error: '_meta.json not found' })
+        }
+
+        let metaContent: any = {}
+        try {
+            metaContent = JSON.parse(fs.readFileSync(metaFilePath, 'utf-8'))
+        } catch (_e) {
+            return res.status(500).json({ error: 'Corrupt _meta.json' })
+        }
+
+        // Create new object with ordered keys
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const newMeta: any = {}
+        // Add keys in specified order
+        order.forEach((key: string) => {
+            if (metaContent[key] !== undefined) {
+                newMeta[key] = metaContent[key]
+            }
+        })
+        // Append any keys that were in original but not in order array (just in case)
+        Object.keys(metaContent).forEach(key => {
+            if (newMeta[key] === undefined) {
+                newMeta[key] = metaContent[key]
+            }
+        })
+
+        try {
+            fs.writeFileSync(metaFilePath, JSON.stringify(newMeta, null, 2))
+            return res.status(200).json({ success: true, meta: newMeta })
+        } catch (_e) {
+            return res.status(500).json({ error: 'Failed to write _meta.json' })
+        }
+    }
+
     return res.status(405).end()
 }

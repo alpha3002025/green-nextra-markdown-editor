@@ -7,7 +7,7 @@ import styles from '../../styles/Editor.module.css'
 import {
     Bold, Italic, Heading1, Heading2, List, ListOrdered,
     Quote, Link as LinkIcon, Image as ImageIcon, Code, Strikethrough, Braces,
-    FileText, Menu, ChevronLeft, Save, Plus, Copy, X, ArrowLeft
+    FileText, Menu, ChevronLeft, Save, Plus, Copy, X, ArrowLeft, Folder, FolderOpen
 } from 'lucide-react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism'
@@ -96,16 +96,25 @@ const FileTreeItem = ({
     level,
     onLoadPost,
     currentPost,
-    onContextMenu
+    onContextMenu,
+    onDragStart,
+    onDragOver,
+    onDrop,
+    onDragLeave
 }: {
     node: FileNode,
     level: number,
     onLoadPost: (slug: string) => void,
     currentPost: string | null,
-    onContextMenu: (e: React.MouseEvent, node: FileNode) => void
+    onContextMenu: (e: React.MouseEvent, node: FileNode) => void,
+    onDragStart: (e: React.DragEvent, node: FileNode) => void,
+    onDragOver: (e: React.DragEvent, node: FileNode) => void,
+    onDrop: (e: React.DragEvent, node: FileNode) => void,
+    onDragLeave: (e: React.DragEvent) => void
 }) => {
     // Default to closed (false), unless current post is inside (can be improved later)
     const [isOpen, setIsOpen] = useState(false);
+    const [dragState, setDragState] = useState<'none' | 'top' | 'bottom' | 'inside'>('none');
 
     const handleClick = () => {
         if (node.type === 'directory') {
@@ -115,16 +124,65 @@ const FileTreeItem = ({
         }
     }
 
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onDragOver(e, node);
+
+        // Local visual feedback
+        const rect = e.currentTarget.getBoundingClientRect();
+        const y = e.clientY - rect.top;
+        const height = rect.height;
+
+        if (node.type === 'directory') {
+            // Top 25% -> before, Bottom 25% -> after, Middle 50% -> inside
+            if (y < height * 0.25) setDragState('top');
+            else if (y > height * 0.75) setDragState('bottom');
+            else setDragState('inside');
+        } else {
+            // Top 50% -> before, Bottom 50% -> after
+            if (y < height * 0.5) setDragState('top');
+            else setDragState('bottom');
+        }
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragState('none');
+        onDragLeave(e);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragState('none');
+        onDrop(e, node);
+    };
+
     const isActive = node.slug === currentPost;
+
+    // Determine border style based on dragState
+    let borderStyle = {};
+    if (dragState === 'top') borderStyle = { borderTop: '2px solid #42b883' };
+    if (dragState === 'bottom') borderStyle = { borderBottom: '2px solid #42b883' };
+    if (dragState === 'inside') borderStyle = { backgroundColor: 'rgba(66, 184, 131, 0.2)' };
 
     return (
         <div>
             <div
+                draggable
+                onDragStart={(e) => onDragStart(e, node)}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
                 className={styles.postItem}
                 style={{
                     paddingLeft: `${1 + level * 0.8}rem`,
-                    backgroundColor: isActive ? 'rgba(66, 184, 131, 0.1)' : 'transparent',
-                    color: isActive ? '#42b883' : 'inherit'
+                    backgroundColor: dragState === 'inside' ? 'rgba(66, 184, 131, 0.2)' : (isActive ? 'rgba(66, 184, 131, 0.1)' : 'transparent'),
+                    color: isActive ? '#42b883' : 'inherit',
+                    transition: 'all 0.1s',
+                    ...borderStyle
                 }}
                 onClick={handleClick}
                 onContextMenu={(e) => onContextMenu(e, node)}
@@ -132,7 +190,7 @@ const FileTreeItem = ({
                 {node.type === 'directory' ? (
                     <>
                         <span style={{ marginRight: 4, transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block', transition: 'transform 0.2s' }}>▶</span>
-                        <FileText size={16} style={{ opacity: 0.7 }} />
+                        {isOpen ? <FolderOpen size={16} style={{ opacity: 0.7 }} /> : <Folder size={16} style={{ opacity: 0.7 }} />}
                     </>
                 ) : (
                     <FileText size={16} />
@@ -149,6 +207,10 @@ const FileTreeItem = ({
                             onLoadPost={onLoadPost}
                             currentPost={currentPost}
                             onContextMenu={onContextMenu}
+                            onDragStart={onDragStart}
+                            onDragOver={onDragOver}
+                            onDrop={onDrop}
+                            onDragLeave={onDragLeave}
                         />
                     ))}
                 </div>
@@ -181,6 +243,198 @@ export default function Editor() {
 
     // Context Menu State
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number, node: FileNode } | null>(null);
+
+    // Drag and Drop State
+    const [draggedNode, setDraggedNode] = useState<FileNode | null>(null);
+
+    const handleNodeDragStart = (e: React.DragEvent, node: FileNode) => {
+        setDraggedNode(node);
+        e.dataTransfer.setData('text/plain', node.path);
+        e.dataTransfer.effectAllowed = 'move';
+    };
+
+    const handleNodeDragOver = (e: React.DragEvent, node: FileNode) => {
+        e.preventDefault();
+        // Prevent dropping on self or children
+        if (draggedNode && (draggedNode.path === node.path || node.path.startsWith(draggedNode.path + '/'))) {
+            e.dataTransfer.dropEffect = 'none';
+        } else {
+            e.dataTransfer.dropEffect = 'move';
+        }
+    };
+
+    const handleNodeDrop = async (e: React.DragEvent, targetNode: FileNode) => {
+        e.preventDefault();
+        if (!draggedNode || draggedNode.path === targetNode.path) return;
+
+        // Calculate drop position logic again to determine action
+        // This duplicates logic in FileTreeItem but gives us the final decision
+        const rect = e.currentTarget.getBoundingClientRect();
+        const y = e.clientY - rect.top;
+        const height = rect.height;
+        let position: 'before' | 'after' | 'inside' = 'inside';
+
+        if (targetNode.type === 'directory') {
+            if (y < height * 0.25) position = 'before';
+            else if (y > height * 0.75) position = 'after';
+            else position = 'inside';
+        } else {
+            if (y < height * 0.5) position = 'before';
+            else position = 'after';
+        }
+
+        // Action Logic
+        if (position === 'inside') {
+            // Move draggedNode INTO targetNode
+            await moveNode(draggedNode, targetNode.path);
+        } else {
+            // Reorder or Move to Sibling
+            // Find parent of targetNode
+            const parts = targetNode.path.split('/');
+            parts.pop();
+            const parentPath = parts.join('/');
+
+            // If draggedNode is already in this parent, it's just a reorder
+            // If dragging from elsewhere, it's a move + reorder
+            const draggedParentParts = draggedNode.path.split('/');
+            draggedParentParts.pop();
+            const draggedParentPath = draggedParentParts.join('/');
+
+            if (parentPath === draggedParentPath) {
+                // Same directory: Reorder
+                await reorderNode(draggedNode, targetNode, parentPath, position);
+            } else {
+                // Different directory: Move then Reorder
+                // First move to new parent
+                const newPath = parentPath ? `${parentPath}/${draggedNode.name}` : draggedNode.name;
+                const moveSuccess = await moveNode(draggedNode, parentPath || '/'); // Move into parent dir
+
+                if (moveSuccess) {
+                    // Update draggedNode info for reorder step since path changed
+                    const updatedDraggedNode = { ...draggedNode, path: newPath };
+                    // Then reorder
+                    // We need to wait for fetchPosts or manually update logic, 
+                    // but reorder needs the meta keys.
+                    // Let's do a best effort reorder call immediately
+                    await reorderNode(updatedDraggedNode, targetNode, parentPath, position);
+                }
+            }
+        }
+    };
+
+    const moveNode = async (node: FileNode, newParentPath: string) => {
+        const parentPath = newParentPath === '/' ? '' : newParentPath;
+        const newPath = parentPath ? `${parentPath}/${node.name}` : node.name;
+
+        if (node.path === newPath) return false;
+
+        try {
+            const res = await fetch('/api/fs', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ oldPath: node.path, newPath })
+            });
+
+            if (!res.ok) throw new Error('Failed to move file');
+
+            // Update Meta for old parent (remove key)
+            const oldParts = node.path.split('/');
+            oldParts.pop();
+            const oldParent = oldParts.join('/');
+            const key = node.name.replace(/\.(md|mdx)$/, '');
+
+            await fetch('/api/meta', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ folderPath: oldParent || '/', key })
+            });
+
+            // Update Meta for new parent (add key)
+            // Ideally we want to add it at specific position, but standard move puts it at end (handled by add)
+            // or we handle reorder separately. Here we just ensure it exists in meta to be shown.
+            await fetch('/api/meta', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: parentPath, key, title: key })
+            });
+
+            window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Moved successfully' }));
+            await fetchPosts();
+            return true;
+        } catch (e: any) {
+            console.error(e);
+            window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Move failed: ' + e.message }));
+            return false;
+        }
+    };
+
+    const reorderNode = async (movedNode: FileNode, targetNode: FileNode, parentPath: string, position: 'before' | 'after') => {
+        // We need the list of keys in the parent directory to construct the new order
+        try {
+            // Fetch current meta
+            const parentDir = parentPath ? parentPath : '/';
+            // We use parentDir as 'folderPath' for meta api
+            // Wait, we need the CURRENT order to manipulate it.
+            // We can get it from 'posts' state but 'posts' is a tree.
+            // We need to find the children of 'parentId' in 'posts' tree.
+
+            const findChildren = (nodes: FileNode[], path: string): FileNode[] => {
+                if (path === '') return nodes; // root
+                for (const n of nodes) {
+                    if (n.path === path && n.children) return n.children;
+                    if (n.children) {
+                        const found = findChildren(n.children, path);
+                        if (found.length > 0) return found;
+                    }
+                }
+                return [];
+            };
+
+            const siblings = findChildren(posts, parentPath);
+            if (!siblings.length) return;
+
+            const getKey = (n: FileNode) => n.name.replace(/\.(md|mdx)$/, '');
+
+            let keys = siblings.map(getKey);
+            const movedKey = getKey(movedNode);
+            const targetKey = getKey(targetNode);
+
+            // Remove movedKey
+            keys = keys.filter(k => k !== movedKey);
+
+            // Insert at new position
+            const targetIndex = keys.indexOf(targetKey);
+            if (targetIndex === -1) {
+                // Fallback: append
+                keys.push(movedKey);
+            } else {
+                if (position === 'before') {
+                    keys.splice(targetIndex, 0, movedKey);
+                } else {
+                    keys.splice(targetIndex + 1, 0, movedKey);
+                }
+            }
+
+            // Call PATCH meta
+            const res = await fetch('/api/meta', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ folderPath: parentPath || '/', order: keys })
+            });
+
+            if (!res.ok) throw new Error('Reorder failed');
+
+            await fetchPosts();
+
+        } catch (e: any) {
+            console.error(e);
+            window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Reorder failed' }));
+        }
+    };
+
+    const handleNodeDragLeave = (_e: React.DragEvent) => {
+        // Just required placeholder
+    };
 
     const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -877,6 +1131,10 @@ export default function Editor() {
                             onLoadPost={loadPost}
                             currentPost={currentPost}
                             onContextMenu={handleContextMenu}
+                            onDragStart={handleNodeDragStart}
+                            onDragOver={handleNodeDragOver}
+                            onDrop={handleNodeDrop}
+                            onDragLeave={handleNodeDragLeave}
                         />
                     ))}
                     {posts.length === 0 && (
