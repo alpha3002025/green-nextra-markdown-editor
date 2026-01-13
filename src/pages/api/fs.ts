@@ -49,6 +49,63 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
             if (fs.existsSync(dest)) return res.status(400).json({ error: 'Destination already exists' })
 
             fs.renameSync(src, dest)
+
+            // Handle Image Folder Migration
+            try {
+                const isMarkdown = /\.(md|mdx)$/.test(src);
+                if (isMarkdown) {
+                    const ext = path.extname(src);
+                    const oldName = path.basename(src, ext);
+                    const newName = path.basename(dest, ext);
+                    const oldDir = path.dirname(src);
+                    const newDir = path.dirname(dest);
+
+                    // Check for standard file-based image directory: ./img/{docName}
+                    // Note: For index.md, the logic might be different (directory based), but handling non-index files first.
+                    if (oldName !== 'index') {
+                        const oldImgDir = path.join(oldDir, 'img', oldName);
+                        // We expect the new structure to be ./img/{newName} relative to new location
+                        const newImgDir = path.join(newDir, 'img', newName);
+
+                        if (fs.existsSync(oldImgDir)) {
+                            // Ensure destination 'img' container folder exists
+                            const newImgParent = path.dirname(newImgDir);
+                            if (!fs.existsSync(newImgParent)) {
+                                fs.mkdirSync(newImgParent, { recursive: true });
+                            }
+
+                            // Move the directory
+                            fs.renameSync(oldImgDir, newImgDir);
+
+                            // Update content references if name changed or just to be safe
+                            // The reference format is typically `./img/oldName/file` or `img/oldName/file`
+                            if (oldName !== newName) {
+                                const content = fs.readFileSync(dest, 'utf8');
+                                // Replace `img/oldName/` with `img/newName/`
+                                // We use a regex that matches `img/oldName/` strictly to avoid false positives
+                                // escaped oldName just in case
+                                const escapedOldName = oldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                                const regex = new RegExp(`img/${escapedOldName}/`, 'g');
+                                const newContent = content.replace(regex, `img/${newName}/`);
+                                fs.writeFileSync(dest, newContent);
+                            }
+                        }
+                    } else {
+                        // Case for index.md (renaming the folder containing it usually handles it, but if moving index.md alone?)
+                        // If we move index.md, we are likely changing its context entirely.
+                        // But the user prompt "Drag and drop... move associated images".
+                        // Usually we drag folders.
+                        // If we drag a folder, fs.renameSync(src, dest) moves the folder and its contents (including index.md and img folder).
+                        // So we don't need to do anything for Folders.
+                        // Only for single Markdown files.
+                        // So ignoring index.md is correct/safer unless user moves index.md specifically (which is rare/weird).
+                    }
+                }
+            } catch (imgErr) {
+                console.error('Error moving associated images:', imgErr);
+                // Don't fail the request if image move fails, but log it.
+            }
+
             return res.status(200).json({ success: true })
         }
 
