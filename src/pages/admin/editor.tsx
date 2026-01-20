@@ -1111,6 +1111,10 @@ export default function Editor() {
                     position: 'relative',
                     transition: isSidebarResizing ? 'none' : 'margin-left 0.3s ease'
                 }}
+                onContextMenu={(e) => {
+                    if (e.defaultPrevented) return; // Ignore if handled by children (though children use stopPropagation)
+                    handleContextMenu(e, { name: 'Root', type: 'directory', path: '' } as FileNode)
+                }}
             >
                 <div
                     className={styles.resizer}
