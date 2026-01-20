@@ -603,6 +603,11 @@ export default function Editor() {
             const data = await res.json()
             setContent(data.content)
             setInitialContent(data.content)
+
+            // Initialize history with loaded content
+            historyRef.current = [data.content];
+            historyStepRef.current = 0;
+
             router.push(`/admin/editor?open=${slug}`, undefined, { shallow: true })
         }
     }
@@ -730,10 +735,162 @@ export default function Editor() {
         }
     };
 
+    // Undo/Redo Logic
+    const historyRef = useRef<string[]>([]);
+    const historyStepRef = useRef<number>(-1);
+    const isUndoRedo = useRef(false);
+
+    // History debounced save
+    useEffect(() => {
+        if (isUndoRedo.current) {
+            isUndoRedo.current = false;
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            const currentStep = historyStepRef.current;
+            const currentHistory = historyRef.current;
+
+            // If completely empty history (initial load), set it
+            if (currentHistory.length === 0 && content !== '') {
+                historyRef.current = [content];
+                historyStepRef.current = 0;
+                return;
+            }
+
+            if (currentHistory.length > 0 && currentHistory[currentStep] !== content) {
+                const newHistory = currentHistory.slice(0, currentStep + 1);
+                newHistory.push(content);
+                historyRef.current = newHistory;
+                historyStepRef.current = newHistory.length - 1;
+            }
+        }, 700);
+
+        return () => clearTimeout(timer);
+    }, [content]);
+
+    const handleUndo = () => {
+        if (historyStepRef.current > 0) {
+            isUndoRedo.current = true;
+            historyStepRef.current--;
+            const prev = historyRef.current[historyStepRef.current];
+            setContent(prev);
+        }
+    };
+
+    const handleRedo = () => {
+        if (historyStepRef.current < historyRef.current.length - 1) {
+            isUndoRedo.current = true;
+            historyStepRef.current++;
+            const next = historyRef.current[historyStepRef.current];
+            setContent(next);
+        }
+    };
+
     const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         const textarea = e.currentTarget;
         const { selectionStart, selectionEnd } = textarea;
         const hasSelection = selectionStart !== selectionEnd;
+
+        // Undo/Redo Shortcuts
+        if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'z') {
+            e.preventDefault();
+            handleUndo();
+            return;
+        }
+        if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+            e.preventDefault();
+            handleRedo();
+            return;
+        }
+
+        // Editor Shortcuts: Move Lines (Alt+Up/Down) & Duplicate (Alt+Shift+D)
+        if (e.altKey) {
+            const isMoveUp = e.key === 'ArrowUp';
+            const isMoveDown = e.key === 'ArrowDown';
+            const isDuplicate = e.shiftKey && (e.key === 'd' || e.key === 'D');
+
+            if (isMoveUp || isMoveDown || isDuplicate) {
+                e.preventDefault();
+                const lines = content.split('\n');
+
+                const getLineIndex = (offset: number) => {
+                    let currentLen = 0;
+                    for (let i = 0; i < lines.length; i++) {
+                        currentLen += lines[i].length + 1; // +1 for newline
+                        if (currentLen > offset) return i;
+                    }
+                    return lines.length - 1;
+                };
+
+                const startLine = getLineIndex(selectionStart);
+                let endLine = getLineIndex(selectionEnd);
+
+                // If selection ends exactly at the start of a new line, treat it as end of previous line
+                // This mimics VS Code line selection behavior
+                if (selectionEnd > selectionStart && selectionEnd > 0 && content[selectionEnd - 1] === '\n') {
+                    endLine = Math.max(startLine, getLineIndex(selectionEnd - 1));
+                }
+
+                if (isDuplicate) {
+                    const linesToDuplicate = lines.slice(startLine, endLine + 1);
+                    lines.splice(endLine + 1, 0, ...linesToDuplicate);
+                    const newContent = lines.join('\n');
+                    setContent(newContent);
+
+                    setTimeout(() => {
+                        if (textareaRef.current) {
+                            textareaRef.current.selectionStart = selectionStart;
+                            textareaRef.current.selectionEnd = selectionEnd;
+                            textareaRef.current.focus();
+                        }
+                    }, 0);
+                    return;
+                }
+
+                if (isMoveUp) {
+                    if (startLine > 0) {
+                        const block = lines.splice(startLine, endLine - startLine + 1);
+                        lines.splice(startLine - 1, 0, ...block);
+                        const newContent = lines.join('\n');
+                        setContent(newContent);
+
+                        // The line that was swapped down is now at index 'endLine' in the new array
+                        const shiftAmount = -(lines[endLine].length + 1);
+
+                        setTimeout(() => {
+                            if (textareaRef.current) {
+                                textareaRef.current.selectionStart = selectionStart + shiftAmount;
+                                textareaRef.current.selectionEnd = selectionEnd + shiftAmount;
+                                textareaRef.current.focus();
+                            }
+                        }, 0);
+                    }
+                    return;
+                }
+
+                if (isMoveDown) {
+                    if (endLine < lines.length - 1) {
+                        const block = lines.splice(startLine, endLine - startLine + 1);
+                        lines.splice(startLine + 1, 0, ...block);
+                        const newContent = lines.join('\n');
+                        setContent(newContent);
+
+                        // The line that was swapped up is now at index 'startLine' in the new array
+                        const shiftAmount = lines[startLine].length + 1;
+
+                        setTimeout(() => {
+                            if (textareaRef.current) {
+                                textareaRef.current.selectionStart = selectionStart + shiftAmount;
+                                textareaRef.current.selectionEnd = selectionEnd + shiftAmount;
+                                textareaRef.current.focus();
+                            }
+                        }, 0);
+                    }
+                    return;
+                }
+            }
+        }
 
         // Map of keys to their wrapping pairs
         const keyMap: { [key: string]: [string, string] } = {
