@@ -643,54 +643,64 @@
 /* Prism Token Styles for "Styled Editor" feel */
 /* Prism Token Styles for "Styled Editor" feel */
 /* Prism Token Styles for "Styled Editor" feel */
+/* Parent Styles: Layout & Base Text */
 .liveEditor :global(.token.title.h1) {
-    font-size: 2.25em;
-    font-weight: bold;
-    color: #333;
-    display: block;
-    padding-bottom: 0.3em;
-    border-bottom: 1px solid #eaeaea;
-    margin-top: 1em;
+    /* font-size must match editor font size to prevent alignment issues */
+    font-weight: 800 !important;
+    color: #42b883 !important;
+    /* display: block breaks alignment with the textarea */
+    border-bottom: 2px solid #42b883;
+}
+
+/* Child Styles */
+.liveEditor :global(.token.title.h1 *) {
+    color: inherit !important;
 }
 
 .liveEditor :global(.token.title.h2) {
-    font-size: 1.95em;
-    font-weight: bold;
-    color: #333;
-    display: block;
-    margin-top: 1em;
+    font-weight: 700 !important;
+    color: #42b883 !important;
+    border-bottom: 1px solid rgba(66, 184, 131, 0.3);
+}
+
+.liveEditor :global(.token.title.h2 *) {
+    color: inherit !important;
 }
 
 .liveEditor :global(.token.title.h3) {
-    font-size: 1.7em;
-    font-weight: bold;
-    color: #333;
-    display: block;
-    margin-top: 1em;
+    font-weight: 600 !important;
+    color: #42b883 !important;
+}
+
+.liveEditor :global(.token.title.h3 *) {
+    color: inherit !important;
 }
 
 .liveEditor :global(.token.title.h4) {
-    font-size: 1.5em;
-    font-weight: bold;
-    color: #333;
-    display: block;
-    margin-top: 1em;
+    font-weight: 600 !important;
+    color: #42b883 !important;
+}
+
+.liveEditor :global(.token.title.h4 *) {
+    color: inherit !important;
 }
 
 .liveEditor :global(.token.title.h5) {
-    font-size: 1.3em;
-    font-weight: bold;
-    color: #333;
-    display: block;
-    margin-top: 1em;
+    font-weight: 600 !important;
+    color: #42b883 !important;
+}
+
+.liveEditor :global(.token.title.h5 *) {
+    color: inherit !important;
 }
 
 .liveEditor :global(.token.title.h6) {
-    font-size: 1.15em;
-    font-weight: bold;
-    color: #333;
-    display: block;
-    margin-top: 1em;
+    font-weight: 600 !important;
+    color: #42b883 !important;
+}
+
+.liveEditor :global(.token.title.h6 *) {
+    color: inherit !important;
 }
 
 .liveEditor :global(.token.bold) {

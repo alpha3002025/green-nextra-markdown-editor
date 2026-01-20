@@ -612,6 +612,16 @@ export default function Editor() {
         }
     }
 
+    // Link textareaRef to the LiveEditor textarea in Both Mode
+    useEffect(() => {
+        if (viewMode === 'both' || viewMode === 'source') {
+            const el = document.getElementById('both-mode-textarea') as HTMLTextAreaElement;
+            if (el && textareaRef.current !== el) {
+                (textareaRef as any).current = el;
+            }
+        }
+    }, [viewMode, currentPost]);
+
     const savePost = useCallback(async () => {
         if (!currentPost) return
         setStatus('Saving...')
@@ -787,7 +797,22 @@ export default function Editor() {
         }
     };
 
+    const pendingCursor = useRef<{ start: number, end: number } | null>(null);
+
+    // Apply pending cursor position after content update
+    useEffect(() => {
+        if (pendingCursor.current && textareaRef.current) {
+            const { start, end } = pendingCursor.current;
+            textareaRef.current.setSelectionRange(start, end);
+            textareaRef.current.focus();
+            pendingCursor.current = null;
+        }
+    }, [content]);
+
     const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        // Debugging Key Events
+        // console.log('Key:', e.key, 'Alt:', e.altKey, 'Shift:', e.shiftKey, 'Meta:', e.metaKey);
+
         const textarea = e.currentTarget;
         const { selectionStart, selectionEnd } = textarea;
         const hasSelection = selectionStart !== selectionEnd;
@@ -836,15 +861,9 @@ export default function Editor() {
                     const linesToDuplicate = lines.slice(startLine, endLine + 1);
                     lines.splice(endLine + 1, 0, ...linesToDuplicate);
                     const newContent = lines.join('\n');
-                    setContent(newContent);
 
-                    setTimeout(() => {
-                        if (textareaRef.current) {
-                            textareaRef.current.selectionStart = selectionStart;
-                            textareaRef.current.selectionEnd = selectionEnd;
-                            textareaRef.current.focus();
-                        }
-                    }, 0);
+                    pendingCursor.current = { start: selectionStart, end: selectionEnd };
+                    setContent(newContent);
                     return;
                 }
 
@@ -853,18 +872,15 @@ export default function Editor() {
                         const block = lines.splice(startLine, endLine - startLine + 1);
                         lines.splice(startLine - 1, 0, ...block);
                         const newContent = lines.join('\n');
-                        setContent(newContent);
 
                         // The line that was swapped down is now at index 'endLine' in the new array
                         const shiftAmount = -(lines[endLine].length + 1);
+                        pendingCursor.current = {
+                            start: selectionStart + shiftAmount,
+                            end: selectionEnd + shiftAmount
+                        };
 
-                        setTimeout(() => {
-                            if (textareaRef.current) {
-                                textareaRef.current.selectionStart = selectionStart + shiftAmount;
-                                textareaRef.current.selectionEnd = selectionEnd + shiftAmount;
-                                textareaRef.current.focus();
-                            }
-                        }, 0);
+                        setContent(newContent);
                     }
                     return;
                 }
@@ -874,18 +890,15 @@ export default function Editor() {
                         const block = lines.splice(startLine, endLine - startLine + 1);
                         lines.splice(startLine + 1, 0, ...block);
                         const newContent = lines.join('\n');
-                        setContent(newContent);
 
                         // The line that was swapped up is now at index 'startLine' in the new array
                         const shiftAmount = lines[startLine].length + 1;
+                        pendingCursor.current = {
+                            start: selectionStart + shiftAmount,
+                            end: selectionEnd + shiftAmount
+                        };
 
-                        setTimeout(() => {
-                            if (textareaRef.current) {
-                                textareaRef.current.selectionStart = selectionStart + shiftAmount;
-                                textareaRef.current.selectionEnd = selectionEnd + shiftAmount;
-                                textareaRef.current.focus();
-                            }
-                        }, 0);
+                        setContent(newContent);
                     }
                     return;
                 }
@@ -1530,15 +1543,39 @@ export default function Editor() {
                                     flex: viewMode === 'both' ? `${editorRatio}` : '1'
                                 }}
                             >
-                                <textarea
-                                    ref={textareaRef}
-                                    className={styles.textarea}
-                                    value={content}
-                                    onChange={e => setContent(e.target.value)}
-                                    onPaste={handlePaste}
-                                    onKeyDown={handleTextareaKeyDown}
-                                    placeholder="Start writing..."
-                                />
+                                <div className={styles.liveEditorContainer} style={{ padding: 0 }}>
+                                    <LiveEditor
+                                        value={content}
+                                        onValueChange={code => setContent(code)}
+                                        highlight={code => {
+                                            // Custom highlighter to inject h1-h6 classes
+                                            let html = Prism.highlight(code, Prism.languages.markdown, 'markdown');
+
+                                            // Robust regex: Matches the opening 'token title' tag AND the immediate 'token punctuation' with hashes
+                                            // This avoids issues with nested <span> tags in the content breaking the match
+                                            return html.replace(/(<span class="token title[^"]*">)(\s*<span class="token punctuation">)(#+)(<\/span>)/g, (match, openTag, punctuationOpen, hashes, punctuationClose) => {
+                                                const level = hashes.length;
+                                                if (level >= 1 && level <= 6) {
+                                                    const newOpenTag = openTag.replace('token title', `token title h${level}`);
+                                                    return `${newOpenTag}${punctuationOpen}${hashes}${punctuationClose}`;
+                                                }
+                                                return match;
+                                            });
+                                        }}
+                                        padding={24} // Match textarea padding roughly
+                                        className={styles.liveEditor}
+                                        textareaClassName={styles.liveEditorTextarea}
+                                        textareaId="both-mode-textarea"
+                                        onPaste={handlePaste}
+                                        onKeyDown={(e) => handleTextareaKeyDown(e as any)}
+                                        style={{
+                                            fontFamily: '"Fira Code", "Fira Mono", monospace',
+                                            fontSize: 16,
+                                            backgroundColor: '#ffffff',
+                                            minHeight: '100%'
+                                        }}
+                                    />
+                                </div>
                             </div>
 
                             {viewMode === 'both' && (
