@@ -905,6 +905,40 @@ export default function Editor() {
             }
         }
 
+        // Formatting Shortcuts
+        if ((e.metaKey || e.ctrlKey) && !e.shiftKey) {
+            const wrapSelection = (wrapper: string) => {
+                if (!hasSelection) return;
+                e.preventDefault();
+                const text = content;
+                const newText = text.substring(0, selectionStart) +
+                    wrapper + text.substring(selectionStart, selectionEnd) + wrapper +
+                    text.substring(selectionEnd);
+
+                pendingCursor.current = {
+                    start: selectionStart + wrapper.length,
+                    end: selectionEnd + wrapper.length
+                };
+                setContent(newText);
+            };
+
+            // Bold: Cmd+B
+            if (e.key === 'b') {
+                wrapSelection('**');
+                return;
+            }
+            // Italic: Cmd+I
+            if (e.key === 'i') {
+                wrapSelection('*');
+                return;
+            }
+            // Strikethrough: Cmd+K (Note: Standard link shortcut is usually Cmd+K, but user requested Strikethrough)
+            if (e.key === 'k') {
+                wrapSelection('~~');
+                return;
+            }
+        }
+
         // Map of keys to their wrapping pairs
         const keyMap: { [key: string]: [string, string] } = {
             '(': ['(', ')'],
@@ -912,7 +946,8 @@ export default function Editor() {
             '[': ['[', ']'],
             '`': ['`', '`'],
             '"': ['"', '"'],
-            "'": ["'", "'"]
+            "'": ["'", "'"],
+            '*': ['*', '*']
         };
 
         if (hasSelection && keyMap[e.key]) {
