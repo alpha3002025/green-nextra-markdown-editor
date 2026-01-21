@@ -641,15 +641,12 @@
 }
 
 /* Prism Token Styles for "Styled Editor" feel */
-/* Prism Token Styles for "Styled Editor" feel */
-/* Prism Token Styles for "Styled Editor" feel */
 /* Parent Styles: Layout & Base Text */
 .liveEditor :global(.token.title.h1) {
     /* font-size must match editor font size to prevent alignment issues */
     font-weight: 800 !important;
     color: #42b883 !important;
-    /* display: block breaks alignment with the textarea */
-    border-bottom: 2px solid #42b883;
+    /* geometric styles removed */
 }
 
 /* Child Styles */
@@ -660,7 +657,6 @@
 .liveEditor :global(.token.title.h2) {
     font-weight: 700 !important;
     color: #42b883 !important;
-    border-bottom: 1px solid rgba(66, 184, 131, 0.3);
 }
 
 .liveEditor :global(.token.title.h2 *) {
@@ -718,7 +714,7 @@
     /* Vue Green */
     background-color: rgba(66, 184, 131, 0.1);
     border-radius: 4px;
-    padding: 0.1rem 0.3rem;
+    /* padding: 0.1rem 0.3rem; -> REMOVED to prevent horizontal cursor drift */
 }
 
 .liveEditor :global(.token.url) {
@@ -733,17 +729,8 @@
 
 .liveEditor :global(.token.blockquote) {
     color: #6a737d;
-    /* Revert to original grey-ish or neutral */
-    border-left: 4px solid #42b883;
-    /* Keep Vue Green Border */
-    background-color: #f0f8f5;
-    /* Keep Light green bg */
-    padding: 0.5rem 1rem;
-    margin: 1rem 0;
-    border-radius: 0 4px 4px 0;
+    /* geometric styles removed to prevent vertical cursor drift */
     font-style: italic;
-    /* Nextra usually has italic quotes, this is fine */
-    display: block;
 }
 
 .contextMenu {
