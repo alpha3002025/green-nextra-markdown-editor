@@ -486,7 +486,11 @@ export default function Editor() {
                 headers.push({ id, text, level });
             }
         });
-        setToc(headers);
+        setToc(prev => {
+            // Only update if headers actually changed to prevent immediate re-render loop
+            if (JSON.stringify(prev) === JSON.stringify(headers)) return prev;
+            return headers;
+        });
     }, [content]);
 
     // Resizing Logic (TOC)
@@ -779,23 +783,29 @@ export default function Editor() {
         return () => clearTimeout(timer);
     }, [content]);
 
-    const handleUndo = () => {
+    // Sync Ref with Content for Event Handlers (Fix for cursor jumping)
+    const contentRef = useRef(content);
+    useEffect(() => {
+        contentRef.current = content;
+    }, [content]);
+
+    const handleUndo = useCallback(() => {
         if (historyStepRef.current > 0) {
             isUndoRedo.current = true;
             historyStepRef.current--;
             const prev = historyRef.current[historyStepRef.current];
             setContent(prev);
         }
-    };
+    }, []);
 
-    const handleRedo = () => {
+    const handleRedo = useCallback(() => {
         if (historyStepRef.current < historyRef.current.length - 1) {
             isUndoRedo.current = true;
             historyStepRef.current++;
             const next = historyRef.current[historyStepRef.current];
             setContent(next);
         }
-    };
+    }, []);
 
     const pendingCursor = useRef<{ start: number, end: number } | null>(null);
 
@@ -809,13 +819,30 @@ export default function Editor() {
         }
     }, [content]);
 
-    const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const highlightCode = useCallback((code: string) => {
+        // Custom highlighter to inject h1-h6 classes
+        let html = Prism.highlight(code, Prism.languages.markdown, 'markdown');
+
+        // Robust regex: Matches the opening 'token title' tag AND the immediate 'token punctuation' with hashes
+        // This avoids issues with nested <span> tags in the content breaking the match
+        return html.replace(/(<span class="token title[^"]*">)(\s*<span class="token punctuation">)(#+)(<\/span>)/g, (match, openTag, punctuationOpen, hashes, punctuationClose) => {
+            const level = hashes.length;
+            if (level >= 1 && level <= 6) {
+                const newOpenTag = openTag.replace('token title', `token title h${level}`);
+                return `${newOpenTag}${punctuationOpen}${hashes}${punctuationClose}`;
+            }
+            return match;
+        });
+    }, []);
+
+    const handleTextareaKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         // Debugging Key Events
         // console.log('Key:', e.key, 'Alt:', e.altKey, 'Shift:', e.shiftKey, 'Meta:', e.metaKey);
 
         const textarea = e.currentTarget;
         const { selectionStart, selectionEnd } = textarea;
         const hasSelection = selectionStart !== selectionEnd;
+        const currentContent = contentRef.current;
 
         // Undo/Redo Shortcuts
         if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'z') {
@@ -837,7 +864,7 @@ export default function Editor() {
 
             if (isMoveUp || isMoveDown || isDuplicate) {
                 e.preventDefault();
-                const lines = content.split('\n');
+                const lines = currentContent.split('\n');
 
                 const getLineIndex = (offset: number) => {
                     let currentLen = 0;
@@ -853,7 +880,7 @@ export default function Editor() {
 
                 // If selection ends exactly at the start of a new line, treat it as end of previous line
                 // This mimics VS Code line selection behavior
-                if (selectionEnd > selectionStart && selectionEnd > 0 && content[selectionEnd - 1] === '\n') {
+                if (selectionEnd > selectionStart && selectionEnd > 0 && currentContent[selectionEnd - 1] === '\n') {
                     endLine = Math.max(startLine, getLineIndex(selectionEnd - 1));
                 }
 
@@ -910,7 +937,7 @@ export default function Editor() {
             const wrapSelection = (wrapper: string) => {
                 if (!hasSelection) return;
                 e.preventDefault();
-                const text = content;
+                const text = currentContent;
                 const newText = text.substring(0, selectionStart) +
                     wrapper + text.substring(selectionStart, selectionEnd) + wrapper +
                     text.substring(selectionEnd);
@@ -953,7 +980,7 @@ export default function Editor() {
         if (hasSelection && keyMap[e.key]) {
             e.preventDefault();
             const [open, close] = keyMap[e.key];
-            const text = content;
+            const text = currentContent;
             const newText = text.substring(0, selectionStart) +
                 open + text.substring(selectionStart, selectionEnd) + close +
                 text.substring(selectionEnd);
@@ -968,7 +995,7 @@ export default function Editor() {
                 }
             }, 0);
         }
-    };
+    }, [handleUndo, handleRedo]);
 
     const insertText = (textToInsert: string) => {
         const textarea = textareaRef.current
@@ -1581,22 +1608,8 @@ export default function Editor() {
                                 <div className={styles.liveEditorContainer} style={{ padding: 0 }}>
                                     <LiveEditor
                                         value={content}
-                                        onValueChange={code => setContent(code)}
-                                        highlight={code => {
-                                            // Custom highlighter to inject h1-h6 classes
-                                            let html = Prism.highlight(code, Prism.languages.markdown, 'markdown');
-
-                                            // Robust regex: Matches the opening 'token title' tag AND the immediate 'token punctuation' with hashes
-                                            // This avoids issues with nested <span> tags in the content breaking the match
-                                            return html.replace(/(<span class="token title[^"]*">)(\s*<span class="token punctuation">)(#+)(<\/span>)/g, (match, openTag, punctuationOpen, hashes, punctuationClose) => {
-                                                const level = hashes.length;
-                                                if (level >= 1 && level <= 6) {
-                                                    const newOpenTag = openTag.replace('token title', `token title h${level}`);
-                                                    return `${newOpenTag}${punctuationOpen}${hashes}${punctuationClose}`;
-                                                }
-                                                return match;
-                                            });
-                                        }}
+                                        onValueChange={setContent}
+                                        highlight={highlightCode}
                                         padding={24} // Match textarea padding roughly
                                         className={styles.liveEditor}
                                         textareaClassName={styles.liveEditorTextarea}
@@ -1711,8 +1724,8 @@ export default function Editor() {
                                 <div className={styles.liveEditorContainer}>
                                     <LiveEditor
                                         value={content}
-                                        onValueChange={code => setContent(code)}
-                                        highlight={code => Prism.highlight(code, Prism.languages.markdown, 'markdown')}
+                                        onValueChange={setContent}
+                                        highlight={highlightCode}
                                         padding={30}
                                         className={styles.liveEditor}
                                         textareaClassName={styles.liveEditorTextarea}
