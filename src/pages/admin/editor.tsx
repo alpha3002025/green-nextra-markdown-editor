@@ -1620,7 +1620,8 @@ export default function Editor() {
                                             fontFamily: '"Fira Code", "Fira Mono", monospace',
                                             fontSize: 16,
                                             backgroundColor: '#ffffff',
-                                            minHeight: '100%'
+                                            minHeight: '100%',
+                                            lineHeight: '1.6',
                                         }}
                                     />
                                 </div>
@@ -1734,7 +1735,8 @@ export default function Editor() {
                                             fontFamily: '"Fira Code", "Fira Mono", monospace',
                                             fontSize: 16,
                                             backgroundColor: '#ffffff',
-                                            minHeight: '100%'
+                                            minHeight: '100%',
+                                            lineHeight: '1.6',
                                         }}
                                     />
                                 </div>
