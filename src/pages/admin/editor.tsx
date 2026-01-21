@@ -1622,6 +1622,8 @@ export default function Editor() {
                                             backgroundColor: '#ffffff',
                                             minHeight: '100%',
                                             lineHeight: '1.6',
+                                            whiteSpace: 'pre-wrap',
+                                            wordBreak: 'break-word',
                                         }}
                                     />
                                 </div>
@@ -1737,6 +1739,8 @@ export default function Editor() {
                                             backgroundColor: '#ffffff',
                                             minHeight: '100%',
                                             lineHeight: '1.6',
+                                            whiteSpace: 'pre-wrap',
+                                            wordBreak: 'break-word',
                                         }}
                                     />
                                 </div>

@@ -636,6 +636,15 @@
     min-height: 100%;
 }
 
+/* Ensure textarea and syntax highlight layer handle line wrapping identically */
+.liveEditor textarea,
+.liveEditor pre {
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    box-sizing: border-box !important;
+}
+
 .liveEditorTextarea {
     outline: none;
 }
