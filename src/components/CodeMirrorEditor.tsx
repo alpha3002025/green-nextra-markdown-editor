@@ -1,15 +1,55 @@
 import React, { useCallback, useMemo, forwardRef } from 'react';
-import CodeMirror, { ReactCodeMirrorProps, EditorView, Extension, ReactCodeMirrorRef } from '@uiw/react-codemirror';
+import CodeMirror, { ReactCodeMirrorProps, EditorView, Extension, ReactCodeMirrorRef, ViewPlugin, Decoration, DecorationSet, ViewUpdate } from '@uiw/react-codemirror';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
-import { EditorState, Transaction } from '@codemirror/state';
+import { EditorState, Transaction, Range } from '@codemirror/state';
 import { keymap, KeyBinding } from '@codemirror/view';
-import { HighlightStyle, syntaxHighlighting, indentUnit } from '@codemirror/language';
+import { HighlightStyle, syntaxHighlighting, indentUnit, syntaxTree } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
 import {
     copyLineUp, copyLineDown, moveLineUp, moveLineDown,
     deleteLine, standardKeymap, toggleComment
 } from '@codemirror/commands';
+
+// Code Block Background Plugin
+const codeBlockBackgroundPlugin = ViewPlugin.fromClass(class {
+    decorations: DecorationSet;
+
+    constructor(view: EditorView) {
+        this.decorations = this.computeDecorations(view);
+    }
+
+    update(update: ViewUpdate) {
+        if (update.docChanged || update.viewportChanged) {
+            this.decorations = this.computeDecorations(update.view);
+        }
+    }
+
+    computeDecorations(view: EditorView): DecorationSet {
+        const widgets: Range<Decoration>[] = [];
+        for (const { from, to } of view.visibleRanges) {
+            syntaxTree(view.state).iterate({
+                from, to,
+                enter: (node) => {
+                    if (node.name === "FencedCode") {
+                        const startLine = view.state.doc.lineAt(node.from);
+                        const endLine = view.state.doc.lineAt(node.to);
+
+                        for (let i = startLine.number; i <= endLine.number; i++) {
+                            const line = view.state.doc.line(i);
+                            widgets.push(Decoration.line({
+                                class: "cm-codeblock-line"
+                            }).range(line.from));
+                        }
+                    }
+                }
+            });
+        }
+        return Decoration.set(widgets);
+    }
+}, {
+    decorations: v => v.decorations
+});
 
 interface CodeMirrorEditorProps {
     value: string;
@@ -36,13 +76,11 @@ const greenHighlightStyle = HighlightStyle.define([
     { tag: tags.list, color: "#42b883", fontWeight: "bold" },
     { tag: tags.quote, color: "#6a737d", fontStyle: "italic" },
     // Code Blocks: Text Color Only (Emerald Green Variations), Background only for inline monospace
-    { tag: tags.monospace, color: "#42b883", backgroundColor: "rgba(66, 184, 131, 0.1)", borderRadius: "3px" }, // Inline
-    { tag: [tags.string, tags.attributeName, tags.name, tags.propertyName, tags.atom], color: "#42b883" }, // Code Text
-    { tag: [tags.keyword, tags.typeName, tags.bool, tags.literal, tags.macroName], color: "#2E8B57" }, // Keywords
-    { tag: [tags.number, tags.className, tags.variableName, tags.function(tags.variableName), tags.labelName, tags.definition(tags.name)], color: "#3CB371" }, // Vars
+    { tag: [tags.monospace, tags.string, tags.attributeName, tags.name, tags.propertyName, tags.atom, tags.literal, tags.inserted, tags.deleted, tags.changed], color: "#42b883" }, // Base Green
+    { tag: [tags.keyword, tags.typeName, tags.bool, tags.macroName, tags.processingInstruction, tags.namespace], color: "#2E8B57" }, // Keywords
+    { tag: [tags.number, tags.className, tags.variableName, tags.function(tags.variableName), tags.labelName, tags.definition(tags.name), tags.special(tags.variableName), tags.local(tags.variableName)], color: "#3CB371" }, // Vars
     { tag: [tags.operator, tags.comment], color: "#888" },
-    { tag: tags.meta, color: "#888" },
-    { tag: tags.punctuation, color: "#aaa" }
+    { tag: [tags.meta, tags.punctuation, tags.bracket], color: "#aaa" } // Lighten punctuation
 ]);
 
 // Helper for toggling wrapper (Exported to be used by Toolbar if needed, or keeping local logic)
@@ -148,8 +186,10 @@ const CodeMirrorEditor = forwardRef<ReactCodeMirrorRef, CodeMirrorEditorProps>((
             "&": { height: "100%", fontSize: "16px", fontFamily: '"Fira Code", "Fira Mono", monospace' },
             ".cm-content": { caretColor: "#42b883", lineHeight: "1.6" },
             ".cm-scroller": { fontFamily: '"Fira Code", "Fira Mono", monospace', lineHeight: "1.6" },
-            "&.cm-focused": { outline: "none" }
-        })
+            "&.cm-focused": { outline: "none" },
+            ".cm-codeblock-line": { backgroundColor: "rgba(66, 184, 131, 0.1)" }
+        }),
+        codeBlockBackgroundPlugin
     ], [eventHandlers, keyMaps]);
 
     return (
