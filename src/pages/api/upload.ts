@@ -35,8 +35,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 isFile = true;
             } else if (!fs.existsSync(postDir)) {
                 // Check for potential file extensions
-                if (fs.existsSync(postDir + '.md') || fs.existsSync(postDir + '.mdx')) {
+                if (fs.existsSync(postDir + '.md')) {
                     isFile = true;
+                    postDir = postDir + '.md';
+                } else if (fs.existsSync(postDir + '.mdx')) {
+                    isFile = true;
+                    postDir = postDir + '.mdx';
                 }
             }
         } catch (e) {

@@ -14,6 +14,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism'
 import CodeMirrorEditor, { toggleWrapper, insertTextAtCursor } from '@/components/CodeMirrorEditor';
 import { ReactCodeMirrorRef } from '@uiw/react-codemirror';
+import { EditorView } from '@codemirror/view';
 import rehypeRaw from 'rehype-raw'; // Support HTML in markdown
 import { YouTubeEmbed, getYouTubeId } from '@/components/YouTubeEmbed';
 import { LinkPreview } from '@/components/LinkPreview';
@@ -649,7 +650,7 @@ export default function Editor() {
     }, [currentPost]);
 
     // CodeMirror handles Image Upload via onImageUpload prop helper
-    const processFileUpload = useCallback(async (file: File) => {
+    const processFileUpload = useCallback(async (file: File, view?: EditorView) => {
         const slug = currentPostRef.current;
         if (!slug) return;
 
@@ -667,7 +668,13 @@ export default function Editor() {
                 const { filename } = await res.json();
                 const docName = slug.split('/').pop()?.replace(/\.(md|mdx)$/, '') || '';
                 const imagePath = (slug === 'home' || !docName) ? `./img/${filename}` : `./img/${docName}/${filename}`;
-                insertText(`![](${imagePath})`);
+
+                if (view) {
+                    insertTextAtCursor(view, `![](${imagePath})`);
+                } else {
+                    insertText(`![](${imagePath})`);
+                }
+
                 setStatus('Image uploaded');
                 window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Image uploaded successfully' }));
             } else {
