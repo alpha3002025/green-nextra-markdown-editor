@@ -856,13 +856,16 @@ export default function Editor() {
             return;
         }
 
-        // Editor Shortcuts: Move Lines (Alt+Up/Down) & Duplicate (Alt+Shift+D)
+        // Editor Shortcuts: Move Lines (Alt+Up/Down) & Duplicate (Alt+Shift+Up/Down)
         if (e.altKey) {
-            const isMoveUp = e.key === 'ArrowUp';
-            const isMoveDown = e.key === 'ArrowDown';
-            const isDuplicate = e.shiftKey && (e.key === 'd' || e.key === 'D');
+            const isUp = e.key === 'ArrowUp';
+            const isDown = e.key === 'ArrowDown';
+            const isShift = e.shiftKey;
 
-            if (isMoveUp || isMoveDown || isDuplicate) {
+            // Legacy/Extra shortcut for duplicate
+            const isDuplicateKey = isShift && (e.key === 'd' || e.key === 'D');
+
+            if (isUp || isDown || isDuplicateKey) {
                 e.preventDefault();
                 const lines = currentContent.split('\n');
 
@@ -884,53 +887,91 @@ export default function Editor() {
                     endLine = Math.max(startLine, getLineIndex(selectionEnd - 1));
                 }
 
-                if (isDuplicate) {
+                // DUPLICATE (Copy Line Up/Down)
+                if ((isShift && (isUp || isDown)) || isDuplicateKey) {
                     const linesToDuplicate = lines.slice(startLine, endLine + 1);
-                    lines.splice(endLine + 1, 0, ...linesToDuplicate);
+                    const textToDuplicate = linesToDuplicate.join('\n');
+
+                    if (isUp) {
+                        // Copy Up: Insert before startLine
+                        lines.splice(startLine, 0, ...linesToDuplicate);
+                    } else {
+                        // Copy Down (default for Alt+Shift+D): Insert after endLine
+                        lines.splice(endLine + 1, 0, ...linesToDuplicate);
+                    }
+
                     const newContent = lines.join('\n');
 
-                    pendingCursor.current = { start: selectionStart, end: selectionEnd };
+                    // Calculate new cursor position
+                    // If copied up, we want to stay on the original lines (which are now pushed down) or follow the new ones?
+                    // VS Code "Copy Line Up": Duplicates line ABOVE, cursor stays on current line (which moved down relative to top).
+                    // VS Code "Copy Line Down": Duplicates line BELOW, cursor stays on current line.
+
+                    // Actually VS Code behavior:
+                    // Copy Down: duplicates line, inserts below. Cursor stays on original line.
+                    // Copy Up: duplicates line, inserts above. Cursor stays on original line.
+
+                    // Let's keep it simple: Select the ORIGINAL text range if possible, or just keep cursor.
+                    // For now, let's just keep cursor relative to content.
+
+                    // Wait, if I insert lines ABOVE, the current selection shifts down.
+                    const addedLength = textToDuplicate.length + 1; // +1 for newline
+
+                    let newStart = selectionStart;
+                    let newEnd = selectionEnd;
+
+                    if (isUp) {
+                        newStart += addedLength;
+                        newEnd += addedLength;
+                    }
+
+                    pendingCursor.current = { start: newStart, end: newEnd };
                     setContent(newContent);
                     return;
                 }
 
-                if (isMoveUp) {
-                    if (startLine > 0) {
-                        const block = lines.splice(startLine, endLine - startLine + 1);
-                        lines.splice(startLine - 1, 0, ...block);
-                        const newContent = lines.join('\n');
+                // MOVE (Alt + Arrow) - No Shift
+                if (!isShift) {
+                    if (isUp) {
+                        if (startLine > 0) {
+                            const block = lines.splice(startLine, endLine - startLine + 1);
+                            lines.splice(startLine - 1, 0, ...block);
+                            const newContent = lines.join('\n');
 
-                        // The line that was swapped down is now at index 'endLine' in the new array
-                        const shiftAmount = -(lines[endLine].length + 1);
-                        pendingCursor.current = {
-                            start: selectionStart + shiftAmount,
-                            end: selectionEnd + shiftAmount
-                        };
+                            // The line that was swapped down is now at index 'endLine' in the new array
+                            const shiftAmount = -(lines[endLine].length + 1);
+                            pendingCursor.current = {
+                                start: selectionStart + shiftAmount,
+                                end: selectionEnd + shiftAmount
+                            };
 
-                        setContent(newContent);
+                            setContent(newContent);
+                        }
+                        return;
                     }
-                    return;
-                }
 
-                if (isMoveDown) {
-                    if (endLine < lines.length - 1) {
-                        const block = lines.splice(startLine, endLine - startLine + 1);
-                        lines.splice(startLine + 1, 0, ...block);
-                        const newContent = lines.join('\n');
+                    if (isDown) {
+                        if (endLine < lines.length - 1) {
+                            const block = lines.splice(startLine, endLine - startLine + 1);
+                            lines.splice(startLine + 1, 0, ...block);
+                            const newContent = lines.join('\n');
 
-                        // The line that was swapped up is now at index 'startLine' in the new array
-                        const shiftAmount = lines[startLine].length + 1;
-                        pendingCursor.current = {
-                            start: selectionStart + shiftAmount,
-                            end: selectionEnd + shiftAmount
-                        };
+                            // The line that was swapped up is now at index 'startLine' in the new array
+                            const shiftAmount = lines[startLine].length + 1;
+                            pendingCursor.current = {
+                                start: selectionStart + shiftAmount,
+                                end: selectionEnd + shiftAmount
+                            };
 
-                        setContent(newContent);
+                            setContent(newContent);
+                        }
+                        return;
                     }
-                    return;
                 }
             }
         }
+
+
 
         // Formatting Shortcuts
         if ((e.metaKey || e.ctrlKey) && !e.shiftKey) {
@@ -938,9 +979,37 @@ export default function Editor() {
                 if (!hasSelection) return;
                 e.preventDefault();
                 const text = currentContent;
-                const newText = text.substring(0, selectionStart) +
-                    wrapper + text.substring(selectionStart, selectionEnd) + wrapper +
-                    text.substring(selectionEnd);
+                const selectedText = text.substring(selectionStart, selectionEnd);
+                const before = text.substring(0, selectionStart);
+                const after = text.substring(selectionEnd);
+
+                // 1. Check if selection is already wrapped (Internal) - e.g. selecting "**text**"
+                if (selectedText.startsWith(wrapper) && selectedText.endsWith(wrapper) && selectedText.length >= 2 * wrapper.length) {
+                    const newText = before + selectedText.substring(wrapper.length, selectedText.length - wrapper.length) + after;
+                    pendingCursor.current = {
+                        start: selectionStart,
+                        end: selectionEnd - 2 * wrapper.length
+                    };
+                    setContent(newText);
+                    return;
+                }
+
+                // 2. Check if selection is surrounded by wrapper (External) - e.g. selecting "text" inside "**text**"
+                if (before.endsWith(wrapper) && after.startsWith(wrapper)) {
+                    const newText = before.substring(0, before.length - wrapper.length) +
+                        selectedText +
+                        after.substring(wrapper.length);
+
+                    pendingCursor.current = {
+                        start: selectionStart - wrapper.length,
+                        end: selectionEnd - wrapper.length
+                    };
+                    setContent(newText);
+                    return;
+                }
+
+                // 3. Apply wrapper
+                const newText = before + wrapper + selectedText + wrapper + after;
 
                 pendingCursor.current = {
                     start: selectionStart + wrapper.length,
