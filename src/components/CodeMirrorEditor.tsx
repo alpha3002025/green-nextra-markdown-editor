@@ -4,11 +4,11 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { EditorState, Transaction } from '@codemirror/state';
 import { keymap, KeyBinding } from '@codemirror/view';
-import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
+import { HighlightStyle, syntaxHighlighting, indentUnit } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
 import {
     copyLineUp, copyLineDown, moveLineUp, moveLineDown,
-    deleteLine, standardKeymap
+    deleteLine, standardKeymap, toggleComment
 } from '@codemirror/commands';
 
 interface CodeMirrorEditorProps {
@@ -35,8 +35,14 @@ const greenHighlightStyle = HighlightStyle.define([
     { tag: tags.url, color: "#42b883", textDecoration: "underline" },
     { tag: tags.list, color: "#42b883", fontWeight: "bold" },
     { tag: tags.quote, color: "#6a737d", fontStyle: "italic" },
-    { tag: tags.monospace, color: "#42b883", backgroundColor: "rgba(66, 184, 131, 0.1)", borderRadius: "3px" },
-    { tag: [tags.keyword, tags.operator, tags.comment], color: "#888" }
+    // Code Blocks: Text Color Only (Emerald Green Variations), Background only for inline monospace
+    { tag: tags.monospace, color: "#42b883", backgroundColor: "rgba(66, 184, 131, 0.1)", borderRadius: "3px" }, // Inline
+    { tag: [tags.string, tags.attributeName, tags.name, tags.propertyName, tags.atom], color: "#42b883" }, // Code Text
+    { tag: [tags.keyword, tags.typeName, tags.bool, tags.literal, tags.macroName], color: "#2E8B57" }, // Keywords
+    { tag: [tags.number, tags.className, tags.variableName, tags.function(tags.variableName), tags.labelName, tags.definition(tags.name)], color: "#3CB371" }, // Vars
+    { tag: [tags.operator, tags.comment], color: "#888" },
+    { tag: tags.meta, color: "#888" },
+    { tag: tags.punctuation, color: "#aaa" }
 ]);
 
 // Helper for toggling wrapper (Exported to be used by Toolbar if needed, or keeping local logic)
@@ -122,6 +128,8 @@ const CodeMirrorEditor = forwardRef<ReactCodeMirrorRef, CodeMirrorEditorProps>((
         { key: "Mod-b", run: (view) => toggleWrapper(view, "**"), preventDefault: true },
         { key: "Mod-i", run: (view) => toggleWrapper(view, "*"), preventDefault: true },
         { key: "Mod-k", run: (view) => toggleWrapper(view, "~~"), preventDefault: true },
+        // Comment
+        { key: "Mod-/", run: toggleComment },
         // Line Operations
         { key: "Alt-ArrowUp", run: moveLineUp },
         { key: "Alt-ArrowDown", run: moveLineDown },
@@ -130,6 +138,7 @@ const CodeMirrorEditor = forwardRef<ReactCodeMirrorRef, CodeMirrorEditorProps>((
     ]), []);
 
     const extensions = useMemo(() => [
+        indentUnit.of("    "),
         markdown({ base: markdownLanguage, codeLanguages: languages }),
         syntaxHighlighting(greenHighlightStyle),
         eventHandlers,
