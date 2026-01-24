@@ -436,6 +436,9 @@ export default function Editor() {
     };
 
     const editorViewRef = useRef<ReactCodeMirrorRef>(null);
+    const [draggedHeaderIndex, setDraggedHeaderIndex] = useState<number | null>(null);
+    const [dragOverHeaderIndex, setDragOverHeaderIndex] = useState<number | null>(null);
+    const [dragHeaderPosition, setDragHeaderPosition] = useState<'top' | 'bottom' | null>(null);
 
     // Close context menu on click elsewhere
     useEffect(() => {
@@ -1011,6 +1014,99 @@ export default function Editor() {
         }
     }
 
+    // Header Reordering Logic
+    const handleHeaderDrop = (e: React.DragEvent, targetIndex: number) => {
+        e.preventDefault();
+        (e.currentTarget as HTMLElement).style.background = 'transparent';
+
+        const sourceIndexStr = e.dataTransfer.getData('text/plain');
+        if (!sourceIndexStr) return;
+
+        const sourceIndex = parseInt(sourceIndexStr, 10);
+        if (sourceIndex === targetIndex || isNaN(sourceIndex)) return;
+
+        // Position Logic: If bottom, target is next index
+        let adjustedTargetIndex = targetIndex;
+        if (dragHeaderPosition === 'bottom') {
+            adjustedTargetIndex = targetIndex + 1;
+        }
+
+        const headers = toc;
+        if (!headers[sourceIndex] || !headers[targetIndex]) return;
+
+        const lines = content.split('\n');
+
+        // Helper to find line number of a header
+        const headerLineIndices: number[] = [];
+        let headerCount = 0;
+        let inCodeBlock = false;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (line.trim().startsWith('```')) inCodeBlock = !inCodeBlock;
+            if (inCodeBlock) continue;
+
+            const match = line.match(/^(#{1,6})\s+(.+)$/);
+            if (match) {
+                if (headerCount < headers.length) {
+                    headerLineIndices.push(i);
+                    headerCount++;
+                }
+            }
+        }
+
+        if (headerLineIndices.length !== headers.length) {
+            window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Cannot parse structure correctly for reordering' }));
+            return;
+        }
+
+        // Determine range of Source Block
+        const sourceStartLine = headerLineIndices[sourceIndex];
+        const sourceLevel = headers[sourceIndex].level;
+        let sourceEndIndex = sourceIndex + 1;
+        while (sourceEndIndex < headers.length && headers[sourceEndIndex].level > sourceLevel) {
+            sourceEndIndex++;
+        }
+
+        const sourceEndLine = (sourceEndIndex < headerLineIndices.length)
+            ? headerLineIndices[sourceEndIndex]
+            : lines.length;
+
+        // Extract Source Block
+        const sourceBlock = lines.slice(sourceStartLine, sourceEndLine);
+
+        // Adjust lines removing source
+        const linesWithoutSource = [
+            ...lines.slice(0, sourceStartLine),
+            ...lines.slice(sourceEndLine)
+        ];
+
+        // Calculate Target Insertion Point
+        // Calculate Target Insertion Point
+        let insertAt = 0;
+
+        // If adjustedTargetIndex is past the last header, append to end
+        if (adjustedTargetIndex >= headerLineIndices.length) {
+            insertAt = linesWithoutSource.length;
+        } else {
+            const targetOriginalStart = headerLineIndices[adjustedTargetIndex];
+            insertAt = targetOriginalStart;
+
+            // Adjust if target was after source (indexes shifted up)
+            if (targetOriginalStart > sourceStartLine) {
+                insertAt -= (sourceEndLine - sourceStartLine);
+            }
+        }
+
+        linesWithoutSource.splice(insertAt, 0, ...sourceBlock);
+
+        const newContent = linesWithoutSource.join('\n');
+        setContent(newContent);
+
+        setDraggedHeaderIndex(null);
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Section moved' }));
+    };
+
     return (
         <div className={`${styles.container} ${inter.className}`}>
             <Head>
@@ -1422,13 +1518,53 @@ export default function Editor() {
                                 </div>
                                 <div className={styles.tocList}>
                                     {toc.map((item, index) => (
-                                        <a
+                                        <div
                                             key={index}
+                                            draggable
+                                            onDragStart={(e) => {
+                                                e.dataTransfer.setData('text/plain', index.toString());
+                                                setDraggedHeaderIndex(index);
+                                                e.currentTarget.style.opacity = '0.5';
+                                            }}
+                                            onDragEnd={(e) => {
+                                                e.currentTarget.style.opacity = '1';
+                                                setDraggedHeaderIndex(null);
+                                                setDragOverHeaderIndex(null);
+                                                setDragHeaderPosition(null);
+                                            }}
+                                            onDragOver={(e) => {
+                                                e.preventDefault(); // Allow drop
+
+                                                // Calculate top/bottom
+                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                const y = e.clientY - rect.top;
+                                                const height = rect.height;
+
+                                                setDragOverHeaderIndex(index);
+                                                if (y < height / 2) {
+                                                    setDragHeaderPosition('top');
+                                                } else {
+                                                    setDragHeaderPosition('bottom');
+                                                }
+                                            }}
+                                            onDragLeave={(e) => {
+                                                if (dragOverHeaderIndex === index) {
+                                                    setDragOverHeaderIndex(null);
+                                                    setDragHeaderPosition(null);
+                                                }
+                                            }}
+                                            onDrop={(e) => handleHeaderDrop(e, index)}
                                             className={`${styles.tocItem} ${styles['h' + item.level]}`}
                                             onClick={() => scrollToHeader(item.id)}
+                                            style={{
+                                                cursor: 'move',
+                                                borderTop: (dragOverHeaderIndex === index && dragHeaderPosition === 'top') ? '2px solid #42b883' : '2px solid transparent',
+                                                borderBottom: (dragOverHeaderIndex === index && dragHeaderPosition === 'bottom') ? '2px solid #42b883' : '2px solid transparent',
+                                                transition: 'border 0.1s'
+                                            }}
                                         >
                                             {item.text}
-                                        </a>
+                                        </div>
                                     ))}
                                     {toc.length === 0 && (
                                         <div style={{ padding: '1rem', color: '#999', fontSize: '0.9rem' }}>
