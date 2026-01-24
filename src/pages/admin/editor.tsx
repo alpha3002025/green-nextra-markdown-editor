@@ -642,23 +642,31 @@ export default function Editor() {
         return () => window.removeEventListener('keydown', handleKeyDown)
     }, [savePost])
 
+    // Use Ref for currentPost to avoid stale closures in CodeMirror callbacks
+    const currentPostRef = useRef(currentPost);
+    useEffect(() => {
+        currentPostRef.current = currentPost;
+    }, [currentPost]);
+
     // CodeMirror handles Image Upload via onImageUpload prop helper
-    const processFileUpload = async (file: File) => {
-        if (!currentPost) return;
+    const processFileUpload = useCallback(async (file: File) => {
+        const slug = currentPostRef.current;
+        if (!slug) return;
+
         const formData = new FormData();
         formData.append('file', file);
         setStatus('Uploading...');
 
         try {
-            const res = await fetch(`/api/upload?slug=${currentPost}`, {
+            const res = await fetch(`/api/upload?slug=${slug}`, {
                 method: 'POST',
                 body: formData
             });
 
             if (res.ok) {
                 const { filename } = await res.json();
-                const docName = currentPost.split('/').pop()?.replace(/\.(md|mdx)$/, '') || '';
-                const imagePath = (currentPost === 'home' || !docName) ? `./img/${filename}` : `./img/${docName}/${filename}`;
+                const docName = slug.split('/').pop()?.replace(/\.(md|mdx)$/, '') || '';
+                const imagePath = (slug === 'home' || !docName) ? `./img/${filename}` : `./img/${docName}/${filename}`;
                 insertText(`![](${imagePath})`);
                 setStatus('Image uploaded');
                 window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Image uploaded successfully' }));
@@ -670,7 +678,7 @@ export default function Editor() {
             console.error(e);
             setStatus('Upload failed');
         }
-    };
+    }, []);
 
     const cleanUnusedImages = async () => {
         if (!currentPost) return;
