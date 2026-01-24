@@ -11,12 +11,9 @@ import {
 } from 'lucide-react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism'
-import LiveEditor from 'react-simple-code-editor';
-import Prism from 'prismjs';
-import 'prismjs/components/prism-markdown';
-import 'prismjs/themes/prism.css'; // Import base Prism styles
+import CodeMirrorEditor, { toggleWrapper, insertTextAtCursor } from '@/components/CodeMirrorEditor';
+import { ReactCodeMirrorRef } from '@uiw/react-codemirror';
 import rehypeRaw from 'rehype-raw'; // Support HTML in markdown
-import 'prismjs/themes/prism.css'; // Import base Prism styles
 import { YouTubeEmbed, getYouTubeId } from '@/components/YouTubeEmbed';
 import { LinkPreview } from '@/components/LinkPreview';
 import { Inter } from 'next/font/google'
@@ -436,7 +433,7 @@ export default function Editor() {
         // Just required placeholder
     };
 
-    const textareaRef = useRef<HTMLTextAreaElement>(null)
+    const editorViewRef = useRef<ReactCodeMirrorRef>(null);
 
     // Close context menu on click elsewhere
     useEffect(() => {
@@ -608,23 +605,12 @@ export default function Editor() {
             setContent(data.content)
             setInitialContent(data.content)
 
-            // Initialize history with loaded content
-            historyRef.current = [data.content];
-            historyStepRef.current = 0;
-
             router.push(`/admin/editor?open=${slug}`, undefined, { shallow: true })
         }
     }
 
-    // Link textareaRef to the LiveEditor textarea in Both Mode
-    useEffect(() => {
-        if (viewMode === 'both' || viewMode === 'source') {
-            const el = document.getElementById('both-mode-textarea') as HTMLTextAreaElement;
-            if (el && textareaRef.current !== el) {
-                (textareaRef as any).current = el;
-            }
-        }
-    }, [viewMode, currentPost]);
+    // Link textareaRef (Not needed for CodeMirror as we use editorViewRef directly)
+    // Removed old LiveEditor linking logic
 
     const savePost = useCallback(async () => {
         if (!currentPost) return
@@ -655,489 +641,78 @@ export default function Editor() {
         return () => window.removeEventListener('keydown', handleKeyDown)
     }, [savePost])
 
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!e.target.files || !e.target.files[0] || !currentPost) return
-        const file = e.target.files[0]
-        const formData = new FormData()
-        formData.append('file', file)
+    // CodeMirror handles Image Upload via onImageUpload prop helper
+    const processFileUpload = async (file: File) => {
+        if (!currentPost) return;
+        const formData = new FormData();
+        formData.append('file', file);
+        setStatus('Uploading...');
 
-        setStatus('Uploading...')
-        const res = await fetch(`/api/upload?slug=${currentPost}`, {
-            method: 'POST',
-            body: formData
-        })
+        try {
+            const res = await fetch(`/api/upload?slug=${currentPost}`, {
+                method: 'POST',
+                body: formData
+            });
 
-        if (res.ok) {
-            const { filename } = await res.json()
-
-            const docName = currentPost.split('/').pop()?.replace(/\.(md|mdx)$/, '') || '';
-            const imagePath = (currentPost === 'home' || !docName) ? `./img/${filename}` : `./img/${docName}/${filename}`;
-            insertText(`![](${imagePath})`)
-            setStatus('Image uploaded')
-        } else {
-            setStatus('Upload failed')
-        }
-        e.target.value = ''
-    }
-
-    const handleDragOver = (e: React.DragEvent) => {
-        e.preventDefault()
-    }
-
-    const handleDrop = async (e: React.DragEvent) => {
-        e.preventDefault()
-        if (!currentPost || !e.dataTransfer.files || !e.dataTransfer.files[0]) return
-
-        // Verify if it is an image
-        const file = e.dataTransfer.files[0]
-        if (!file.type.startsWith('image/')) return
-
-        const formData = new FormData()
-        formData.append('file', file)
-
-        setStatus('Uploading...')
-        const res = await fetch(`/api/upload?slug=${currentPost}`, {
-            method: 'POST',
-            body: formData
-        })
-
-        if (res.ok) {
-            const { filename } = await res.json()
-
-            const docName = currentPost.split('/').pop()?.replace(/\.(md|mdx)$/, '') || '';
-            const imagePath = (currentPost === 'home' || !docName) ? `./img/${filename}` : `./img/${docName}/${filename}`;
-            insertText(`![](${imagePath})`)
-            setStatus('Image uploaded')
-            window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Image uploaded successfully' }))
-        } else {
-            setStatus('Upload failed')
-            window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Upload failed' }))
-        }
-    }
-
-    const handlePaste = async (e: React.ClipboardEvent) => {
-        const items = e.clipboardData.items;
-        for (let i = 0; i < items.length; i++) {
-            const item = items[i];
-            if (item.type.startsWith('image/')) {
-                e.preventDefault();
-                const file = item.getAsFile();
-                if (!file || !currentPost) return;
-
-                const formData = new FormData();
-                formData.append('file', file);
-
-                setStatus('Uploading...');
-                const res = await fetch(`/api/upload?slug=${currentPost}`, {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (res.ok) {
-                    const { filename } = await res.json();
-
-                    const docName = currentPost.split('/').pop()?.replace(/\.(md|mdx)$/, '') || '';
-                    const imagePath = (currentPost === 'home' || !docName) ? `./img/${filename}` : `./img/${docName}/${filename}`;
-                    insertText(`![](${imagePath})`);
-                    setStatus('Image uploaded');
-                    window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Image uploaded successfully' }));
-                } else {
-                    setStatus('Upload failed');
-                    window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Upload failed' }));
-                }
+            if (res.ok) {
+                const { filename } = await res.json();
+                const docName = currentPost.split('/').pop()?.replace(/\.(md|mdx)$/, '') || '';
+                const imagePath = (currentPost === 'home' || !docName) ? `./img/${filename}` : `./img/${docName}/${filename}`;
+                insertText(`![](${imagePath})`);
+                setStatus('Image uploaded');
+                window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Image uploaded successfully' }));
+            } else {
+                setStatus('Upload failed');
+                window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Upload failed' }));
             }
+        } catch (e) {
+            console.error(e);
+            setStatus('Upload failed');
         }
     };
 
-    // Undo/Redo Logic
-    const historyRef = useRef<string[]>([]);
-    const historyStepRef = useRef<number>(-1);
-    const isUndoRedo = useRef(false);
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || !e.target.files[0]) return;
+        processFileUpload(e.target.files[0]);
+        e.target.value = '';
+    }
 
-    // History debounced save
-    useEffect(() => {
-        if (isUndoRedo.current) {
-            isUndoRedo.current = false;
-            return;
-        }
-
-        const timer = setTimeout(() => {
-            const currentStep = historyStepRef.current;
-            const currentHistory = historyRef.current;
-
-            // If completely empty history (initial load), set it
-            if (currentHistory.length === 0 && content !== '') {
-                historyRef.current = [content];
-                historyStepRef.current = 0;
-                return;
-            }
-
-            if (currentHistory.length > 0 && currentHistory[currentStep] !== content) {
-                const newHistory = currentHistory.slice(0, currentStep + 1);
-                newHistory.push(content);
-                historyRef.current = newHistory;
-                historyStepRef.current = newHistory.length - 1;
-            }
-        }, 700);
-
-        return () => clearTimeout(timer);
-    }, [content]);
-
-    // Sync Ref with Content for Event Handlers (Fix for cursor jumping)
-    const contentRef = useRef(content);
-    useEffect(() => {
-        contentRef.current = content;
-    }, [content]);
-
-    const handleUndo = useCallback(() => {
-        if (historyStepRef.current > 0) {
-            isUndoRedo.current = true;
-            historyStepRef.current--;
-            const prev = historyRef.current[historyStepRef.current];
-            setContent(prev);
-        }
-    }, []);
-
-    const handleRedo = useCallback(() => {
-        if (historyStepRef.current < historyRef.current.length - 1) {
-            isUndoRedo.current = true;
-            historyStepRef.current++;
-            const next = historyRef.current[historyStepRef.current];
-            setContent(next);
-        }
-    }, []);
-
-    const pendingCursor = useRef<{ start: number, end: number } | null>(null);
-
-    // Apply pending cursor position after content update
-    useEffect(() => {
-        if (pendingCursor.current && textareaRef.current) {
-            const { start, end } = pendingCursor.current;
-            textareaRef.current.setSelectionRange(start, end);
-            textareaRef.current.focus();
-            pendingCursor.current = null;
-        }
-    }, [content]);
-
-    const highlightCode = useCallback((code: string) => {
-        // Custom highlighter to inject h1-h6 classes
-        let html = Prism.highlight(code, Prism.languages.markdown, 'markdown');
-
-        // Robust regex: Matches the opening 'token title' tag AND the immediate 'token punctuation' with hashes
-        // This avoids issues with nested <span> tags in the content breaking the match
-        return html.replace(/(<span class="token title[^"]*">)(\s*<span class="token punctuation">)(#+)(<\/span>)/g, (match, openTag, punctuationOpen, hashes, punctuationClose) => {
-            const level = hashes.length;
-            if (level >= 1 && level <= 6) {
-                const newOpenTag = openTag.replace('token title', `token title h${level}`);
-                return `${newOpenTag}${punctuationOpen}${hashes}${punctuationClose}`;
-            }
-            return match;
-        });
-    }, []);
-
-    const handleTextareaKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        // Debugging Key Events
-        // console.log('Key:', e.key, 'Alt:', e.altKey, 'Shift:', e.shiftKey, 'Meta:', e.metaKey);
-
-        const textarea = e.currentTarget;
-        const { selectionStart, selectionEnd } = textarea;
-        const hasSelection = selectionStart !== selectionEnd;
-        const currentContent = contentRef.current;
-
-        // Undo/Redo Shortcuts
-        if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'z') {
-            e.preventDefault();
-            handleUndo();
-            return;
-        }
-        if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
-            e.preventDefault();
-            handleRedo();
-            return;
-        }
-
-        // Editor Shortcuts: Move Lines (Alt+Up/Down) & Duplicate (Alt+Shift+Up/Down)
-        if (e.altKey) {
-            const isUp = e.key === 'ArrowUp';
-            const isDown = e.key === 'ArrowDown';
-            const isShift = e.shiftKey;
-
-            // Legacy/Extra shortcut for duplicate
-            const isDuplicateKey = isShift && (e.key === 'd' || e.key === 'D');
-
-            if (isUp || isDown || isDuplicateKey) {
-                e.preventDefault();
-                const lines = currentContent.split('\n');
-
-                const getLineIndex = (offset: number) => {
-                    let currentLen = 0;
-                    for (let i = 0; i < lines.length; i++) {
-                        currentLen += lines[i].length + 1; // +1 for newline
-                        if (currentLen > offset) return i;
-                    }
-                    return lines.length - 1;
-                };
-
-                const startLine = getLineIndex(selectionStart);
-                let endLine = getLineIndex(selectionEnd);
-
-                // If selection ends exactly at the start of a new line, treat it as end of previous line
-                // This mimics VS Code line selection behavior
-                if (selectionEnd > selectionStart && selectionEnd > 0 && currentContent[selectionEnd - 1] === '\n') {
-                    endLine = Math.max(startLine, getLineIndex(selectionEnd - 1));
-                }
-
-                // DUPLICATE (Copy Line Up/Down)
-                if ((isShift && (isUp || isDown)) || isDuplicateKey) {
-                    const linesToDuplicate = lines.slice(startLine, endLine + 1);
-                    const textToDuplicate = linesToDuplicate.join('\n');
-
-                    if (isUp) {
-                        // Copy Up: Insert before startLine
-                        lines.splice(startLine, 0, ...linesToDuplicate);
-                    } else {
-                        // Copy Down (default for Alt+Shift+D): Insert after endLine
-                        lines.splice(endLine + 1, 0, ...linesToDuplicate);
-                    }
-
-                    const newContent = lines.join('\n');
-
-                    // Calculate new cursor position
-                    // If copied up, we want to stay on the original lines (which are now pushed down) or follow the new ones?
-                    // VS Code "Copy Line Up": Duplicates line ABOVE, cursor stays on current line (which moved down relative to top).
-                    // VS Code "Copy Line Down": Duplicates line BELOW, cursor stays on current line.
-
-                    // Actually VS Code behavior:
-                    // Copy Down: duplicates line, inserts below. Cursor stays on original line.
-                    // Copy Up: duplicates line, inserts above. Cursor stays on original line.
-
-                    // Let's keep it simple: Select the ORIGINAL text range if possible, or just keep cursor.
-                    // For now, let's just keep cursor relative to content.
-
-                    // Wait, if I insert lines ABOVE, the current selection shifts down.
-                    const addedLength = textToDuplicate.length + 1; // +1 for newline
-
-                    let newStart = selectionStart;
-                    let newEnd = selectionEnd;
-
-                    if (isUp) {
-                        newStart += addedLength;
-                        newEnd += addedLength;
-                    }
-
-                    pendingCursor.current = { start: newStart, end: newEnd };
-                    setContent(newContent);
-                    return;
-                }
-
-                // MOVE (Alt + Arrow) - No Shift
-                if (!isShift) {
-                    if (isUp) {
-                        if (startLine > 0) {
-                            const block = lines.splice(startLine, endLine - startLine + 1);
-                            lines.splice(startLine - 1, 0, ...block);
-                            const newContent = lines.join('\n');
-
-                            // The line that was swapped down is now at index 'endLine' in the new array
-                            const shiftAmount = -(lines[endLine].length + 1);
-                            pendingCursor.current = {
-                                start: selectionStart + shiftAmount,
-                                end: selectionEnd + shiftAmount
-                            };
-
-                            setContent(newContent);
-                        }
-                        return;
-                    }
-
-                    if (isDown) {
-                        if (endLine < lines.length - 1) {
-                            const block = lines.splice(startLine, endLine - startLine + 1);
-                            lines.splice(startLine + 1, 0, ...block);
-                            const newContent = lines.join('\n');
-
-                            // The line that was swapped up is now at index 'startLine' in the new array
-                            const shiftAmount = lines[startLine].length + 1;
-                            pendingCursor.current = {
-                                start: selectionStart + shiftAmount,
-                                end: selectionEnd + shiftAmount
-                            };
-
-                            setContent(newContent);
-                        }
-                        return;
-                    }
-                }
-            }
-        }
-
-
-
-        // Formatting Shortcuts
-        if ((e.metaKey || e.ctrlKey) && !e.shiftKey) {
-            const wrapSelection = (wrapper: string) => {
-                if (!hasSelection) return;
-                e.preventDefault();
-                const text = currentContent;
-                const selectedText = text.substring(selectionStart, selectionEnd);
-                const before = text.substring(0, selectionStart);
-                const after = text.substring(selectionEnd);
-
-                // 1. Check if selection is already wrapped (Internal) - e.g. selecting "**text**"
-                if (selectedText.startsWith(wrapper) && selectedText.endsWith(wrapper) && selectedText.length >= 2 * wrapper.length) {
-                    const newText = before + selectedText.substring(wrapper.length, selectedText.length - wrapper.length) + after;
-                    pendingCursor.current = {
-                        start: selectionStart,
-                        end: selectionEnd - 2 * wrapper.length
-                    };
-                    setContent(newText);
-                    return;
-                }
-
-                // 2. Check if selection is surrounded by wrapper (External) - e.g. selecting "text" inside "**text**"
-                if (before.endsWith(wrapper) && after.startsWith(wrapper)) {
-                    const newText = before.substring(0, before.length - wrapper.length) +
-                        selectedText +
-                        after.substring(wrapper.length);
-
-                    pendingCursor.current = {
-                        start: selectionStart - wrapper.length,
-                        end: selectionEnd - wrapper.length
-                    };
-                    setContent(newText);
-                    return;
-                }
-
-                // 3. Apply wrapper
-                const newText = before + wrapper + selectedText + wrapper + after;
-
-                pendingCursor.current = {
-                    start: selectionStart + wrapper.length,
-                    end: selectionEnd + wrapper.length
-                };
-                setContent(newText);
-            };
-
-            // Bold: Cmd+B
-            if (e.key === 'b') {
-                wrapSelection('**');
-                return;
-            }
-            // Italic: Cmd+I
-            if (e.key === 'i') {
-                wrapSelection('*');
-                return;
-            }
-            // Strikethrough: Cmd+K (Note: Standard link shortcut is usually Cmd+K, but user requested Strikethrough)
-            if (e.key === 'k') {
-                wrapSelection('~~');
-                return;
-            }
-        }
-
-        // Map of keys to their wrapping pairs
-        const keyMap: { [key: string]: [string, string] } = {
-            '(': ['(', ')'],
-            '{': ['{', '}'],
-            '[': ['[', ']'],
-            '`': ['`', '`'],
-            '"': ['"', '"'],
-            "'": ["'", "'"],
-            '*': ['*', '*']
-        };
-
-        if (hasSelection && keyMap[e.key]) {
-            e.preventDefault();
-            const [open, close] = keyMap[e.key];
-            const text = currentContent;
-            const newText = text.substring(0, selectionStart) +
-                open + text.substring(selectionStart, selectionEnd) + close +
-                text.substring(selectionEnd);
-
-            setContent(newText);
-
-            // Restore selection to the original inner text (now wrapped)
-            setTimeout(() => {
-                if (textareaRef.current) {
-                    textareaRef.current.selectionStart = selectionStart + 1;
-                    textareaRef.current.selectionEnd = selectionEnd + 1;
-                }
-            }, 0);
-        }
-    }, [handleUndo, handleRedo]);
+    // Logic removed: CodeMirror handles Drop/Paste/Shortcuts internally
+    // Removed handleDragOver, handleDrop, handlePaste, manual Undo/Redo/History, handleTextareaKeyDown
 
     const insertText = (textToInsert: string) => {
-        const textarea = textareaRef.current
-        if (!textarea) {
-            setContent(prev => prev + textToInsert)
-            return
-        }
-
-        const start = textarea.selectionStart
-        const end = textarea.selectionEnd
-        const text = content
-        const before = text.substring(0, start)
-        const after = text.substring(end, text.length)
-
-        const newText = before + textToInsert + after
-        setContent(newText)
-
-        setTimeout(() => {
-            textarea.focus()
-            textarea.setSelectionRange(start + textToInsert.length, start + textToInsert.length)
-        }, 0)
+        if (!editorViewRef.current?.view) return;
+        insertTextAtCursor(editorViewRef.current.view, textToInsert);
     }
 
     const formatText = (type: string) => {
-        const textarea = textareaRef.current
-        if (!textarea) return
-
-        const start = textarea.selectionStart
-        const end = textarea.selectionEnd
-        const text = content
-        const selectedText = text.substring(start, end)
-
-        let newText = ''
+        const view = editorViewRef.current?.view;
+        if (!view) return;
 
         switch (type) {
-            case 'bold':
-                newText = text.substring(0, start) + `**${selectedText}**` + text.substring(end)
-                break
-            case 'italic':
-                newText = text.substring(0, start) + `*${selectedText}*` + text.substring(end)
-                break
-            case 'strikethrough':
-                newText = text.substring(0, start) + `~${selectedText}~` + text.substring(end)
-                break
-            case 'inline-code':
-                newText = text.substring(0, start) + `\`${selectedText}\`` + text.substring(end)
-                break
+            case 'bold': toggleWrapper(view, "**"); break;
+            case 'italic': toggleWrapper(view, "*"); break;
+            case 'strikethrough': toggleWrapper(view, "~~"); break;
+            case 'inline-code': toggleWrapper(view, "`"); break;
             case 'h1':
-                newText = text.substring(0, start) + `# ${selectedText}` + text.substring(end)
-                break
+                insertTextAtCursor(view, '# ');
+                break;
             case 'h2':
-                newText = text.substring(0, start) + `## ${selectedText}` + text.substring(end)
-                break
+                insertTextAtCursor(view, '## ');
+                break;
             case 'quote':
-                newText = text.substring(0, start) + selectedText.split('\n').map(line => `> ${line}`).join('\n') + text.substring(end)
-                break
+                // Simple implementation for now. Better to use standard commands if possible.
+                insertTextAtCursor(view, '> ');
+                break;
             case 'code':
-                newText = text.substring(0, start) + `\`\`\`\n${selectedText}\n\`\`\`` + text.substring(end)
-                break
+                insertTextAtCursor(view, '```\n\n```');
+                break;
             case 'link':
-                const linkText = selectedText || 'link'
-                newText = text.substring(0, start) + `[${linkText}](url)` + text.substring(end)
-                break
+                insertTextAtCursor(view, '[link](url)');
+                break;
             case 'list':
-                newText = text.substring(0, start) + selectedText.split('\n').map(line => `- ${line}`).join('\n') + text.substring(end)
-                break
-        }
-
-        if (newText) {
-            setContent(newText)
-            setTimeout(() => {
-                textarea.focus()
-            }, 0)
+                insertTextAtCursor(view, '- ');
+                break;
         }
     }
 
@@ -1661,8 +1236,6 @@ export default function Editor() {
                 <div
                     id="workspace-container"
                     className={styles.workspace}
-                    onDrop={handleDrop}
-                    onDragOver={handleDragOver}
                 >
                     {currentPost ? (
                         <>
@@ -1675,25 +1248,12 @@ export default function Editor() {
                                 }}
                             >
                                 <div className={styles.liveEditorContainer} style={{ padding: 0 }}>
-                                    <LiveEditor
+                                    <CodeMirrorEditor
+                                        ref={editorViewRef}
                                         value={content}
-                                        onValueChange={setContent}
-                                        highlight={highlightCode}
-                                        padding={24} // Match textarea padding roughly
+                                        onChange={setContent}
+                                        onImageUpload={processFileUpload}
                                         className={styles.liveEditor}
-                                        textareaClassName={styles.liveEditorTextarea}
-                                        textareaId="both-mode-textarea"
-                                        onPaste={handlePaste}
-                                        onKeyDown={(e) => handleTextareaKeyDown(e as any)}
-                                        style={{
-                                            fontFamily: '"Fira Code", "Fira Mono", monospace',
-                                            fontSize: 16,
-                                            backgroundColor: '#ffffff',
-                                            minHeight: '100%',
-                                            lineHeight: '1.6',
-                                            whiteSpace: 'pre-wrap',
-                                            wordBreak: 'break-word',
-                                        }}
                                     />
                                 </div>
                             </div>
@@ -1794,23 +1354,12 @@ export default function Editor() {
                                 style={{ display: viewMode === 'live' ? 'block' : 'none' }}
                             >
                                 <div className={styles.liveEditorContainer}>
-                                    <LiveEditor
+                                    <CodeMirrorEditor
+                                        ref={editorViewRef}
                                         value={content}
-                                        onValueChange={setContent}
-                                        highlight={highlightCode}
-                                        padding={30}
+                                        onChange={setContent}
+                                        onImageUpload={processFileUpload}
                                         className={styles.liveEditor}
-                                        textareaClassName={styles.liveEditorTextarea}
-                                        onPaste={handlePaste}
-                                        style={{
-                                            fontFamily: '"Fira Code", "Fira Mono", monospace',
-                                            fontSize: 16,
-                                            backgroundColor: '#ffffff',
-                                            minHeight: '100%',
-                                            lineHeight: '1.6',
-                                            whiteSpace: 'pre-wrap',
-                                            wordBreak: 'break-word',
-                                        }}
                                     />
                                 </div>
                             </div>
