@@ -225,6 +225,7 @@ export default function Editor() {
     const [posts, setPosts] = useState<FileNode[]>([])
     const [currentPost, setCurrentPost] = useState<string | null>(null)
     const [content, setContent] = useState('')
+    const [debouncedContent, setDebouncedContent] = useState('') // Debounced content for heavy tasks
     const [initialContent, setInitialContent] = useState('')
     const [status, setStatus] = useState('')
     const [isSidebarOpen, setSidebarOpen] = useState(true)
@@ -468,9 +469,17 @@ export default function Editor() {
         }
     }, [open])
 
-    // Extract headers when content changes
+    // Debounce content update
     useEffect(() => {
-        const lines = content.split('\n');
+        const timer = setTimeout(() => {
+            setDebouncedContent(content);
+        }, 300); // 300ms delay
+        return () => clearTimeout(timer);
+    }, [content]);
+
+    // Extract headers when debounced content changes
+    useEffect(() => {
+        const lines = debouncedContent.split('\n');
         const headers: { id: string, text: string, level: number }[] = [];
         let inCodeBlock = false;
 
@@ -493,7 +502,7 @@ export default function Editor() {
             if (JSON.stringify(prev) === JSON.stringify(headers)) return prev;
             return headers;
         });
-    }, [content]);
+    }, [debouncedContent]);
 
     // Resizing Logic (TOC)
     const startResizing = useCallback((mouseDownEvent: React.MouseEvent) => {
@@ -1488,7 +1497,7 @@ export default function Editor() {
                                             }
                                         }}
                                     >
-                                        {content}
+                                        {debouncedContent}
                                     </ReactMarkdown>
                                 </div>
                             </div>
