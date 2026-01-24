@@ -41,33 +41,60 @@ function CodeBlock({ language, value }: { language: string, value: string }) {
         });
     }
 
+    const codeRef = useRef<HTMLDivElement>(null);
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
+            e.preventDefault();
+            const selection = window.getSelection();
+            if (codeRef.current && selection) {
+                const range = document.createRange();
+                // Select the code content specifically. 
+                // SyntaxHighlighter with PreTag="div" renders a parent div. We select its text contents.
+                // We exclude the header which is a sibling. Code is the 3rd child (Header, Button, SyntaxHighlighter).
+                // But better to wrap SyntaxHighlighter in a ref-ed div.
+                range.selectNodeContents(codeRef.current);
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+        }
+    };
+
     return (
-        <div className={styles.codeBlockWrapper}>
+        <div
+            className={styles.codeBlockWrapper}
+            tabIndex={0}
+            onKeyDown={handleKeyDown}
+            style={{ outline: 'none' }} // Avoid default outline, keydown handles selection
+        >
             {!copied ? (
                 <div className={styles.codeBlockHeader}>{language}</div>
             ) : null}
             <button className={styles.copyBtn} onClick={handleCopy} title="Copy code">
                 {copied ? <div style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>✓</div> : <Copy size={16} />}
             </button>
-            <SyntaxHighlighter
-                style={vscDarkPlus}
-                language={language}
-                PreTag="div"
-                wrapLines={true}
-                wrapLongLines={true}
-                showLineNumbers={true}
-                lineNumberStyle={{ minWidth: '2.5em', paddingRight: '1em', color: '#6e7681', textAlign: 'right' }}
-                lineProps={(lineNumber: number) => {
-                    const isSelected = selectedLine === lineNumber;
-                    return {
-                        style: { display: 'block', cursor: 'pointer' },
-                        className: isSelected ? `${styles.codeLine} ${styles.codeLineClicked}` : styles.codeLine,
-                        onClick: () => setSelectedLine(isSelected ? null : lineNumber)
-                    } as React.HTMLAttributes<HTMLElement>;
-                }}
-            >
-                {value}
-            </SyntaxHighlighter>
+            <div ref={codeRef} style={{ width: '100%' }}>
+                <SyntaxHighlighter
+                    style={vscDarkPlus}
+                    language={language}
+                    PreTag="div"
+                    wrapLines={true}
+                    wrapLongLines={true}
+                    showLineNumbers={true}
+                    lineNumberStyle={{ minWidth: '2.5em', paddingRight: '1em', color: '#6e7681', textAlign: 'right', userSelect: 'none' }} // Prevent selecting line numbers
+                    customStyle={{ userSelect: 'text', margin: 0, borderRadius: 0 }} // Ensure code text is selectable
+                    lineProps={(lineNumber: number) => {
+                        const isSelected = selectedLine === lineNumber;
+                        return {
+                            style: { display: 'block' }, // Removed cursor: pointer to act like text
+                            className: isSelected ? `${styles.codeLine} ${styles.codeLineClicked}` : styles.codeLine,
+                            onClick: () => setSelectedLine(isSelected ? null : lineNumber)
+                        } as React.HTMLAttributes<HTMLElement>;
+                    }}
+                >
+                    {value}
+                </SyntaxHighlighter>
+            </div>
         </div>
     )
 }

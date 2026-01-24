@@ -54,7 +54,7 @@ const codeBlockBackgroundPlugin = ViewPlugin.fromClass(class {
 interface CodeMirrorEditorProps {
     value: string;
     onChange: (value: string) => void;
-    onImageUpload?: (file: File) => Promise<void>;
+    onImageUpload?: (file: File, view?: EditorView) => Promise<void>;
     startLine?: number;
     className?: string;
     style?: React.CSSProperties;
@@ -140,7 +140,7 @@ const CodeMirrorEditor = forwardRef<ReactCodeMirrorRef, CodeMirrorEditorProps>((
             const file = event.dataTransfer?.files[0];
             if (file && file.type.startsWith('image/')) {
                 event.preventDefault();
-                onImageUpload(file);
+                onImageUpload(file, view);
             }
         },
         paste(event, view) {
@@ -152,7 +152,7 @@ const CodeMirrorEditor = forwardRef<ReactCodeMirrorRef, CodeMirrorEditorProps>((
                         const file = items[i].getAsFile();
                         if (file) {
                             event.preventDefault();
-                            onImageUpload(file);
+                            onImageUpload(file, view);
                             return;
                         }
                     }

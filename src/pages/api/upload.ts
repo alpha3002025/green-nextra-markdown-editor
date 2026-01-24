@@ -58,16 +58,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             const dirName = path.basename(postDir);
             imgDir = path.join(postDir, 'img', dirName);
         }
+    }
 
-        // Create imgDir if it doesn't exist
-        if (!fs.existsSync(imgDir)) {
-            // Create recursively
-            try {
-                fs.mkdirSync(imgDir, { recursive: true });
-            } catch (e) {
-                console.error('Failed to create img dir', e);
-                return res.status(500).json({ error: 'Failed to create image directory' });
-            }
+    // Create imgDir if it doesn't exist (Common for all paths)
+    if (!fs.existsSync(imgDir)) {
+        try {
+            fs.mkdirSync(imgDir, { recursive: true });
+        } catch (e) {
+            console.error('Failed to create img dir', e);
+            return res.status(500).json({ error: 'Failed to create image directory' });
         }
     }
 
