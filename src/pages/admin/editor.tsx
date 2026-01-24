@@ -7,7 +7,8 @@ import styles from '../../styles/Editor.module.css'
 import {
     Bold, Italic, Heading1, Heading2, List, ListOrdered,
     Quote, Link as LinkIcon, Image as ImageIcon, Code, Strikethrough, Braces,
-    FileText, Menu, ChevronLeft, Save, Plus, Copy, X, ArrowLeft, Folder, FolderOpen
+    FileText, Menu, ChevronLeft, Save, Plus, Copy, X, ArrowLeft, Folder, FolderOpen,
+    Trash, Recycle
 } from 'lucide-react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism'
@@ -671,6 +672,31 @@ export default function Editor() {
         }
     };
 
+    const cleanUnusedImages = async () => {
+        if (!currentPost) return;
+        if (!confirm('Are you sure you want to delete unused images for this post?\nThis action cannot be undone.')) return;
+
+        setStatus('Cleaning...');
+        try {
+            const res = await fetch(`/api/cleanup-images?slug=${currentPost}`, {
+                method: 'POST'
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setStatus('Cleaned');
+                window.dispatchEvent(new CustomEvent('show-toast', { detail: `Deleted ${data.deletedCount} unused images` }));
+            } else {
+                throw new Error('Cleanup failed');
+            }
+        } catch (e) {
+            console.error(e);
+            setStatus('Error cleaning');
+            window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Cleanup failed' }));
+        }
+        setTimeout(() => setStatus(''), 2000);
+    };
+
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || !e.target.files[0]) return;
         processFileUpload(e.target.files[0]);
@@ -1108,6 +1134,14 @@ export default function Editor() {
                                     <option value="preview">Preview Mode</option>
                                     <option value="source">Source Mode</option>
                                 </select>
+                                <button
+                                    className={styles.cancelBtn}
+                                    onClick={cleanUnusedImages}
+                                    title="Remove unused image file (at current file)"
+                                    style={{ color: '#42b883', borderColor: '#42b883', marginRight: '8px' }}
+                                >
+                                    <Recycle size={18} />
+                                </button>
                                 <button className={styles.saveBtn} onClick={savePost}>
                                     <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                         <Save size={16} /> Save
@@ -1397,6 +1431,6 @@ export default function Editor() {
                     )}
                 </div>
             </div>
-        </div>
+        </div >
     )
 }

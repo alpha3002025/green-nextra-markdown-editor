@@ -79,7 +79,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
         fs.writeFileSync(filePath, content)
 
-        // Cleanup unused images
+        // Cleanup unused images - DISABLED to prevent accidental deletion
+        /*
         try {
             // Determine the specific image subdirectory for this post
             let specificImgDir: string;
@@ -134,6 +135,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         } catch (e) {
             console.error('Failed to cleanup images', e);
         }
+        */
 
         return res.status(200).json({ success: true })
     }
