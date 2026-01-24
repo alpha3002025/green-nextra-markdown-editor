@@ -177,6 +177,33 @@ const CodeMirrorEditor = forwardRef<ReactCodeMirrorRef, CodeMirrorEditorProps>((
 
     const extensions = useMemo(() => [
         indentUnit.of("    "),
+        EditorView.inputHandler.of((view, from, to, text) => {
+            // Handle Auto-Wrapping for selected text
+            if (from !== to && text.length === 1) { // Only if there is a selection and single char input
+                const open = text;
+                let close = text;
+
+                // Define pairs
+                if (open === "(") close = ")";
+                else if (open === "[") close = "]";
+                else if (open === "{") close = "}";
+                else if (open === "<") close = ">";
+
+                // Allow Markdown wrappers
+                const wrappers = ['*', '_', '`', '~', '"', "'", '(', '[', '{', '<'];
+                if (wrappers.includes(open)) {
+                    const selectedText = view.state.sliceDoc(from, to);
+                    const transaction = view.state.update({
+                        changes: { from, to, insert: `${open}${selectedText}${close}` },
+                        selection: { anchor: from + 1, head: to + 1 }, // Keep selection inside
+                        annotations: Transaction.userEvent.of("input")
+                    });
+                    view.dispatch(transaction);
+                    return true; // We handled it
+                }
+            }
+            return false;
+        }),
         markdown({ base: markdownLanguage, codeLanguages: languages }),
         syntaxHighlighting(greenHighlightStyle),
         eventHandlers,
