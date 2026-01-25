@@ -7,7 +7,7 @@ import styles from '../../styles/Editor.module.css'
 import {
     Bold, Italic, Heading1, Heading2, List, ListOrdered,
     Quote, Link as LinkIcon, Image as ImageIcon, Code, Strikethrough, Braces,
-    FileText, Menu, ChevronLeft, Save, Plus, Copy, X, ArrowLeft, Folder, FolderOpen,
+    FileText, Menu, ChevronLeft, ChevronRight, ChevronDown, Save, Plus, Copy, X, ArrowLeft, Folder, FolderOpen,
     Trash, Recycle
 } from 'lucide-react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -104,7 +104,21 @@ function CodeBlock({ language, value }: { language: string, value: string }) {
 
 // function to generate slug from text
 const generateSlug = (text: string) => {
-    return text.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+    return text
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, '-')
+        // Allow alphanumeric, Korean (Hangul syllables, Jamo), hyphens. Remove others.
+        .replace(/[^\w\-\uAC00-\uD7A3]+/g, '');
+};
+
+// Helper to safely extract text from ReactNode for ID generation
+const extractText = (node: any): string => {
+    if (typeof node === 'string') return node;
+    if (typeof node === 'number') return String(node);
+    if (Array.isArray(node)) return node.map(extractText).join('');
+    if (node && typeof node === 'object' && 'props' in node) return extractText(node.props.children);
+    return '';
 };
 
 // Tree Node Type (Updated)
@@ -267,6 +281,10 @@ export default function Editor() {
 
     const [editorRatio, setEditorRatio] = useState(0.5);
     const [isPaneResizing, setIsPaneResizing] = useState(false);
+
+    // TOC Collapse State
+    const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
+    const [tocInitialized, setTocInitialized] = useState(false); // Track if we set initial fold
 
     // Context Menu State
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number, node: FileNode } | null>(null);
@@ -530,6 +548,40 @@ export default function Editor() {
             return headers;
         });
     }, [debouncedContent]);
+
+    // Initial TOC Collapse Logic
+    useEffect(() => {
+        if (toc.length > 0 && !tocInitialized) {
+            // Find highest level > 1 (assuming H1 title)
+            const nonTitleHeaders = toc.filter(h => h.level > 1);
+            if (nonTitleHeaders.length === 0) return;
+
+            const minLevel = Math.min(...nonTitleHeaders.map(h => h.level));
+            const newCollapsed = new Set<string>();
+
+            // Mark all headers of minLevel (and deeper?) as collapsed initially?
+            // User: "Standards on highest level header ... all folded".
+            // Means show Top Level (minLevel) items, hide their children.
+            // So we need to mark "minLevel" items as collapsed.
+            // We also mark "minLevel + 1" items as collapsed? Yes, fold all deep levels.
+
+            nonTitleHeaders.forEach(h => {
+                // Determine if it has children?
+                // A header has children if the NEXT headers have higher level.
+                // We can just eagerly mark EVERYTHING as collapsed. 
+                // Using Set, we can toggle 'expanded' (remove from set).
+                // "Collapsed" means "Children Hidden".
+
+                // Let's mark ALL headers with children as collapsed?
+                // Or simply all headers? Collapsing a leaf node does nothing visually if we render right.
+                // But simple approach: Fold everything.
+                newCollapsed.add(h.id);
+            });
+
+            setCollapsedIds(newCollapsed);
+            setTocInitialized(true);
+        }
+    }, [toc, tocInitialized]);
 
     // Resizing Logic (TOC)
     const startResizing = useCallback((mouseDownEvent: React.MouseEvent) => {
@@ -1486,9 +1538,12 @@ export default function Editor() {
                                                     </code>
                                                 )
                                             },
-                                            h1: ({ children }) => <h1 id={generateSlug(String(children))}>{children}</h1>,
-                                            h2: ({ children }) => <h2 id={generateSlug(String(children))}>{children}</h2>,
-                                            h3: ({ children }) => <h3 id={generateSlug(String(children))}>{children}</h3>,
+                                            h1: ({ children }) => <h1 id={generateSlug(extractText(children))}>{children}</h1>,
+                                            h2: ({ children }) => <h2 id={generateSlug(extractText(children))}>{children}</h2>,
+                                            h3: ({ children }) => <h3 id={generateSlug(extractText(children))}>{children}</h3>,
+                                            h4: ({ children }) => <h4 id={generateSlug(extractText(children))}>{children}</h4>,
+                                            h5: ({ children }) => <h5 id={generateSlug(extractText(children))}>{children}</h5>,
+                                            h6: ({ children }) => <h6 id={generateSlug(extractText(children))}>{children}</h6>,
                                             a: ({ href, children }: any) => {
                                                 const url = href || '';
                                                 const videoId = getYouTubeId(url);
@@ -1553,62 +1608,123 @@ export default function Editor() {
                                     <span>Outline</span>
                                 </div>
                                 <div className={styles.tocList}>
-                                    {toc.map((item, index) => (
-                                        <div
-                                            key={index}
-                                            draggable
-                                            onDragStart={(e) => {
-                                                e.dataTransfer.setData('text/plain', index.toString());
-                                                setDraggedHeaderIndex(index);
-                                                e.currentTarget.style.opacity = '0.5';
-                                            }}
-                                            onDragEnd={(e) => {
-                                                e.currentTarget.style.opacity = '1';
-                                                setDraggedHeaderIndex(null);
-                                                setDragOverHeaderIndex(null);
-                                                setDragHeaderPosition(null);
-                                            }}
-                                            onDragOver={(e) => {
-                                                e.preventDefault(); // Allow drop
+                                    {(() => {
+                                        const visibleStack: { level: number, collapsed: boolean, id: string }[] = [];
 
-                                                // Calculate top/bottom
-                                                const rect = e.currentTarget.getBoundingClientRect();
-                                                const y = e.clientY - rect.top;
-                                                const height = rect.height;
+                                        return toc.map((item, index) => {
+                                            // 1. Maintain Stack to determine visibility
+                                            while (visibleStack.length > 0 && visibleStack[visibleStack.length - 1].level >= item.level) {
+                                                visibleStack.pop();
+                                            }
 
-                                                setDragOverHeaderIndex(index);
-                                                if (y < height / 2) {
-                                                    setDragHeaderPosition('top');
-                                                } else {
-                                                    setDragHeaderPosition('bottom');
-                                                }
-                                            }}
-                                            onDragLeave={(e) => {
-                                                if (dragOverHeaderIndex === index) {
-                                                    setDragOverHeaderIndex(null);
-                                                    setDragHeaderPosition(null);
-                                                }
-                                            }}
-                                            onDrop={(e) => handleHeaderDrop(e, index)}
-                                            className={`${styles.tocItem} ${styles['h' + item.level]}`}
-                                            onClick={() => scrollToHeader(item.id)}
-                                            style={{
-                                                cursor: 'move',
-                                                borderTop: (dragOverHeaderIndex === index && dragHeaderPosition === 'top') ? '2px solid #42b883' : '2px solid transparent',
-                                                borderBottom: (dragOverHeaderIndex === index && dragHeaderPosition === 'bottom') ? '2px solid #42b883' : '2px solid transparent',
-                                                transition: 'border 0.1s'
-                                            }}
-                                        >
-                                            {item.text}
-                                        </div>
-                                    ))}
-                                    {toc.length === 0 && (
-                                        <div style={{ padding: '1rem', color: '#999', fontSize: '0.9rem' }}>
-                                            No headers found
-                                        </div>
-                                    )}
+                                            // Check visibility
+                                            const isVisible = !visibleStack.some(p => p.collapsed);
+
+                                            // Push current
+                                            const isCollapsed = collapsedIds.has(item.id);
+                                            visibleStack.push({ level: item.level, collapsed: isCollapsed, id: item.id });
+
+                                            if (!isVisible) return null;
+
+                                            // 2. Check if has Children
+                                            const hasChildren = index + 1 < toc.length && toc[index + 1].level > item.level;
+
+                                            return (
+                                                <div
+                                                    key={index}
+                                                    draggable
+                                                    onDragStart={(e) => {
+                                                        e.dataTransfer.setData('text/plain', index.toString());
+                                                        setDraggedHeaderIndex(index);
+                                                        e.currentTarget.style.opacity = '0.5';
+                                                    }}
+                                                    onDragEnd={(e) => {
+                                                        e.currentTarget.style.opacity = '1';
+                                                        setDraggedHeaderIndex(null);
+                                                        setDragOverHeaderIndex(null);
+                                                        setDragHeaderPosition(null);
+                                                    }}
+                                                    onDragOver={(e) => {
+                                                        e.preventDefault();
+                                                        const rect = e.currentTarget.getBoundingClientRect();
+                                                        const y = e.clientY - rect.top;
+                                                        const height = rect.height;
+                                                        setDragOverHeaderIndex(index);
+                                                        if (y < height / 2) setDragHeaderPosition('top');
+                                                        else setDragHeaderPosition('bottom');
+                                                    }}
+                                                    onDragLeave={(e) => {
+                                                        if (dragOverHeaderIndex === index) setDragOverHeaderIndex(null);
+                                                    }}
+                                                    onDrop={(e) => handleHeaderDrop(e, index)}
+                                                    className={styles.tocItem}
+                                                    style={{
+                                                        paddingLeft: `${(item.level - 1) * 12}px`,
+                                                        borderTop: dragOverHeaderIndex === index && dragHeaderPosition === 'top' ? '2px solid #42b883' : 'none',
+                                                        borderBottom: dragOverHeaderIndex === index && dragHeaderPosition === 'bottom' ? '2px solid #42b883' : 'none',
+                                                        opacity: draggedHeaderIndex === index ? 0.5 : 1,
+                                                        display: 'flex',
+                                                        alignItems: 'center'
+                                                    }}
+                                                >
+                                                    {/* Toggle Button */}
+                                                    <span
+                                                        style={{
+                                                            width: 16,
+                                                            height: 16,
+                                                            display: 'inline-flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            cursor: 'pointer',
+                                                            marginRight: 4,
+                                                            color: '#888'
+                                                        }}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const newSet = new Set(collapsedIds);
+                                                            if (newSet.has(item.id)) newSet.delete(item.id);
+                                                            else newSet.add(item.id);
+                                                            setCollapsedIds(newSet);
+                                                        }}
+                                                    >
+                                                        {hasChildren ? (
+                                                            isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />
+                                                        ) : <span style={{ width: 12 }}></span>}
+                                                    </span>
+
+                                                    <a
+                                                        href={`#${item.id}`}
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            const el = document.getElementById(item.id);
+                                                            if (el) {
+                                                                el.scrollIntoView({ behavior: 'smooth' });
+                                                            }
+                                                        }}
+                                                        style={{
+                                                            textDecoration: 'none',
+                                                            color: 'inherit',
+                                                            flex: 1,
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis',
+                                                            whiteSpace: 'nowrap'
+                                                        }}
+                                                    >
+                                                        {item.text}
+                                                    </a>
+                                                </div>
+                                            );
+                                        });
+                                    })()}
                                 </div>
+
+                                {toc.length === 0 && (
+                                    <div style={{ padding: '1rem', color: '#999', fontSize: '0.9rem' }}>
+                                        No headers found
+                                    </div>
+                                )}
                             </div>
+
                         </>
                     ) : (
                         <div className={styles.emptyState}>
@@ -1618,6 +1734,6 @@ export default function Editor() {
                     )}
                 </div>
             </div>
-        </div >
+        </div>
     )
 }
