@@ -36,6 +36,15 @@ The `pages/api` directory is mapped to `/api/*`. Files in this directory are tre
 
 This project uses [`next/font`](https://nextjs.org/docs/pages/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+
+## Update Features from Upstream
+
+If you want to update the latest features from the [green-nextra-markdown-editor](https://github.com/alpha3002025/green-nextra-markdown-editor) repository, run the following command:
+
+```bash
+source patch-upstream.sh
+```
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
