@@ -33,8 +33,10 @@ jobs:
         run: |
           # 프로젝트 전체를 압축 (필요에 따라 특정 폴더만 지정 가능)
           # 예: zip -r release.zip ./dist
-          zip -r project-release.zip . -x "*.git*" -x "project-release.zip" -x "project-release.tar.gz"
-          tar -czf project-release.tar.gz --exclude=".git" --exclude="project-release.zip" --exclude="project-release.tar.gz" .
+          zip -r /tmp/project-release.zip . -x "*.git*"
+          tar -czf /tmp/project-release.tar.gz --exclude=".git" .
+          mv /tmp/project-release.zip .
+          mv /tmp/project-release.tar.gz .
 
       # 2. GitHub 릴리즈 생성 및 파일 업로드
       - name: Create GitHub Release
