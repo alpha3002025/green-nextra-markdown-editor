@@ -1,0 +1,77 @@
+#!/bin/bash
+
+# 설정
+REPO="alpha3002025/green-nextra-markdown-editor"
+TEMP_DIR="temp_update_specific"
+ZIP_FILE="project-release.zip"
+
+# 사용자 입력 확인
+if [ -z "$1" ]; then
+  echo "❌ 사용법: $0 <태그명>"
+  echo "예시: $0 v20260127-1"
+  exit 1
+fi
+
+TAG_NAME="$1"
+
+echo "🔍 릴리즈 태그 '$TAG_NAME' 정보를 확인 중..."
+
+# 특정 태그의 릴리즈 정보 가져오기 및 다운로드 URL 추출
+# GitHub API 호출 -> JSON 파싱 -> 'project-release.zip'의 다운로드 URL 추출
+DOWNLOAD_URL=$(curl -s "https://api.github.com/repos/$REPO/releases/tags/$TAG_NAME" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    if 'message' in data and data['message'] == 'Not Found':
+        sys.exit(1)
+    url = next(asset['browser_download_url'] for asset in data['assets'] if asset['name'] == '$ZIP_FILE')
+    print(url)
+except SystemExit:
+    sys.exit(1)
+except Exception as e:
+    print('')
+")
+
+# 파이썬 스크립트 종료 코드가 1이면 태그를 찾지 못한 것
+if [ $? -ne 0 ] || [ -z "$DOWNLOAD_URL" ]; then
+  echo "❌ 해당 태그($TAG_NAME)를 찾을 수 없거나 릴리즈 파일($ZIP_FILE)이 없습니다."
+  exit 1
+fi
+
+echo "⬇️ 다운로드 중: $TAG_NAME ($DOWNLOAD_URL)"
+
+# 임시 디렉토리 생성 및 다운로드
+mkdir -p "$TEMP_DIR"
+curl -L -o "$TEMP_DIR/$ZIP_FILE" "$DOWNLOAD_URL"
+
+if [ $? -ne 0 ]; then
+  echo "❌ 다운로드 실패"
+  rm -rf "$TEMP_DIR"
+  exit 1
+fi
+
+echo "📦 압축 해제 중..."
+unzip -q "$TEMP_DIR/$ZIP_FILE" -d "$TEMP_DIR/extracted"
+
+# 파일 업데이트 (공통 로직)
+echo "🔄 파일 업데이트 중..."
+SOURCE_DIR="$TEMP_DIR/extracted"
+
+# 1. 코드 파일 동기화
+rsync -av --delete "$SOURCE_DIR/src/components/" src/components/
+rsync -av --delete "$SOURCE_DIR/src/styles/" src/styles/
+rsync -av --delete "$SOURCE_DIR/src/pages/admin/" src/pages/admin/
+rsync -av --delete "$SOURCE_DIR/src/pages/api/" src/pages/api/
+
+# 2. 환경 설정 파일 복사
+cp -a "$SOURCE_DIR/package.json" package.json
+cp -a "$SOURCE_DIR/package-lock.json" package-lock.json 
+cp -a "$SOURCE_DIR/next.config.js" next.config.js
+if [ -f "$SOURCE_DIR/eslint.config.mjs" ]; then
+    cp -a "$SOURCE_DIR/eslint.config.mjs" eslint.config.mjs
+fi
+
+echo "🧹 임시 파일 정리 중..."
+rm -rf "$TEMP_DIR"
+
+echo "✅ 버전 $TAG_NAME 업데이트 완료! 'npm install'을 실행하여 의존성을 갱신하세요."
