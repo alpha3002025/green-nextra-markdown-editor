@@ -47,13 +47,58 @@ npm run dev
 <br/>
 
 
-# 최신 기능 업데이트 방법
+
+# 최신기능 업데이트 방법 - Releases 를 이용한 방식
+
+최신 기능 업데이트는 아래 두 방식을 모두 쉘스크립트로 지원합니다.
+
+- 최신 릴리즈 버전을 반영하는 방법 (update-from-release.sh)
+- 특정 릴리즈 버전을 반영하는 방법 (update-from-specific-version.sh)
+
+<br/>
+
+
+
+(1) 최신 릴리즈 버전을 반영하는 방법
+
+```bash
+source update-from-release.sh
+```
+
+<br/>
+
+
+
+(2) 특정 릴리즈 버전을 반영하는 방법
+
+```bash
+source update-from-specific-version.sh {{릴리즈 버전}}
+```
+
+<br/>
+
+
+
+`{{릴리즈 버전}}` 은 github repository 내의 releases 를 클릭하면 확인하실수 있습니다.
+![releases](./docs/img/20260127-github-releases.png)
+
+
+
+
+
+
+
+
+
+# 최신 기능 업데이트 방법 - github 을 이용한 방식
 다음의 명령어를 통해 최신 기능을 업데이트 받으실 수 있습니다.
 ```bash
 source patch-upstream.sh
 ```
 <br/>
-<br>
+<br/>
+
+
 
 
 # 에디터 사용법

@@ -37,9 +37,40 @@ The `pages/api` directory is mapped to `/api/*`. Files in this directory are tre
 This project uses [`next/font`](https://nextjs.org/docs/pages/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 
-## Update Features from Upstream
+## Update Features - Using Releases
 
-If you want to update the latest features from the [green-nextra-markdown-editor](https://github.com/alpha3002025/green-nextra-markdown-editor) repository, run the following command:
+We support shell scripts to update features in two ways:
+
+- Update to the **latest** release version (`update-from-release.sh`)
+- Update to a **specific** release version (`update-from-specific-version.sh`)
+
+<br/>
+
+(1) Update to the latest release version
+
+```bash
+source update-from-release.sh
+```
+
+<br/>
+
+(2) Update to a specific release version
+
+```bash
+source update-from-specific-version.sh {{Release Version}}
+```
+
+<br/>
+
+You can find the `{{Release Version}}` in the **Releases** section of the GitHub repository.
+![releases](./docs/img/20260127-github-releases.png)
+
+<br/>
+<br/>
+
+## Update Features - Using GitHub
+
+Run the following command to update the latest features from the upstream repository:
 
 ```bash
 source patch-upstream.sh
