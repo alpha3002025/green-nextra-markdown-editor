@@ -108,3 +108,5 @@ source patch-upstream.sh
 - 코드블록 내 주석 처리 기능
 - 카테고리 드래그 앤 드랍, 드래그로 순서 조정
 - 글 드래그 앤 드랍, 드래그로 순서 조정
+- Alt(Opt) + ↑, Alt(Opt) + ↓ : 라인 위/아래 이동
+- Alt(Opt) + Shift + D : 라인 복제
