@@ -1,0 +1,55 @@
+name: Manual or Auto Release with Artifacts
+
+on:
+  # push:
+  #   branches:
+  #     - main
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: '릴리즈 태그 (예: v1.0.0)'
+        required: true
+        default: 'v0.0.0'
+      release_title:
+        description: '릴리즈 제목'
+        required: true
+        default: 'New Release'
+      release_body:
+        description: '릴리즈 상세 내용 (Markdown 지원)'
+        required: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 1. 파일 압축 단계 (.zip 및 .tar.gz 생성)
+      - name: Archive Release Files
+        run: |
+          # 프로젝트 전체를 압축 (필요에 따라 특정 폴더만 지정 가능)
+          # 예: zip -r release.zip ./dist
+          zip -r project-release.zip . -x "*.git*"
+          tar -czf project-release.tar.gz --exclude=".git" .
+
+      # 2. GitHub 릴리즈 생성 및 파일 업로드
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag_name || format('v{0}-{1}', github.run_number, github.sha) }}
+          name: ${{ github.event.inputs.release_title || 'Automatic Push Release' }}
+          
+          # 압축한 파일들을 릴리즈에 첨부
+          files: |
+            project-release.zip
+            project-release.tar.gz
+            
+          # generate_release_notes: true ## commit 목록을 기반으로 자동으로 보여주고 싶을때 사용
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
