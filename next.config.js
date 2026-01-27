@@ -4,6 +4,6 @@ const withNextra = require('nextra')({
 })
 
 module.exports = withNextra({
-    reactStrictMode: true,
+    reactStrictMode: false,
     // Optional: assetPrefix, basePath, etc.
 })
