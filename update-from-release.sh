@@ -26,6 +26,8 @@ if [ -z "$DOWNLOAD_URL" ]; then
 fi
 
 echo "🚀 최신 릴리즈 버전: $LATEST_TAG"
+echo ""
+
 echo "⬇️ 다운로드 중: $DOWNLOAD_URL"
 
 # 임시 디렉토리 생성 및 다운로드
