@@ -294,6 +294,36 @@ export default function Editor() {
     // Drag and Drop State
     const [draggedNode, setDraggedNode] = useState<FileNode | null>(null);
 
+    // Active Header State for TOC
+    const [activeHeaderId, setActiveHeaderId] = useState<string | null>(null);
+
+    const updateActiveHeaderFromSelection = useCallback(() => {
+        // Use editorViewRef (CodeMirror)
+        const editor = editorViewRef.current;
+        if (!editor || !editor.view) return;
+
+        const state = editor.view.state;
+        const cursor = state.selection.main.head;
+        const doc = state.doc;
+
+        // Scan backwards from cursor line
+        const lineBlock = doc.lineAt(cursor);
+        let currentLineNum = lineBlock.number;
+
+        // Check current line and previous lines
+        for (let i = currentLineNum; i >= 1; i--) {
+            const line = doc.line(i);
+            const text = line.text;
+            const match = text.match(/^(#{1,6})\s+(.+)$/);
+            if (match) {
+                const headerText = match[2];
+                setActiveHeaderId(generateSlug(headerText));
+                return;
+            }
+        }
+        setActiveHeaderId(null);
+    }, []);
+
     const handleNodeDragStart = (e: React.DragEvent, node: FileNode) => {
         setDraggedNode(node);
         e.dataTransfer.setData('text/plain', node.path);
@@ -484,6 +514,8 @@ export default function Editor() {
     };
 
     const editorViewRef = useRef<ReactCodeMirrorRef>(null);
+
+    // Drag and Drop Header State
     const [draggedHeaderIndex, setDraggedHeaderIndex] = useState<number | null>(null);
     const [dragOverHeaderIndex, setDragOverHeaderIndex] = useState<number | null>(null);
     const [dragHeaderPosition, setDragHeaderPosition] = useState<'top' | 'bottom' | null>(null);
@@ -1501,7 +1533,12 @@ export default function Editor() {
                                     flex: viewMode === 'both' ? `${editorRatio}` : '1'
                                 }}
                             >
-                                <div className={styles.liveEditorContainer} style={{ padding: 0 }}>
+                                <div
+                                    className={styles.liveEditorContainer}
+                                    style={{ padding: 0 }}
+                                    onKeyUp={updateActiveHeaderFromSelection}
+                                    onClick={updateActiveHeaderFromSelection}
+                                >
                                     {viewMode !== 'live' && (
                                         <CodeMirrorEditor
                                             ref={editorViewRef}
@@ -1691,7 +1728,9 @@ export default function Editor() {
                                                         borderBottom: dragOverHeaderIndex === index && dragHeaderPosition === 'bottom' ? '2px solid #42b883' : 'none',
                                                         opacity: draggedHeaderIndex === index ? 0.5 : 1,
                                                         display: 'flex',
-                                                        alignItems: 'center'
+                                                        alignItems: 'center',
+                                                        backgroundColor: item.id === activeHeaderId ? 'rgba(66, 184, 131, 0.1)' : 'transparent',
+                                                        color: item.id === activeHeaderId ? '#42b883' : 'inherit'
                                                     }}
                                                 >
                                                     {/* Toggle Button */}
