@@ -8,13 +8,14 @@ ZIP_FILE="project-release.zip"
 echo "🔍 최신 릴리즈 정보를 확인 중..."
 
 # 최신 릴리즈 정보 가져오기 및 다운로드 URL 추출 (Python 사용)
-# GitHub API 호출 -> JSON 파싱 -> 'project-release.zip'의 다운로드 URL 추출
-DOWNLOAD_URL=$(curl -s "https://api.github.com/repos/$REPO/releases/latest" | python3 -c "
+# GitHub API 호출 -> JSON 파싱 -> 태그명과 다운로드 URL 추출
+read -r LATEST_TAG DOWNLOAD_URL <<< $(curl -s "https://api.github.com/repos/$REPO/releases/latest" | python3 -c "
 import sys, json
 try:
     data = json.load(sys.stdin)
+    tag = data['tag_name']
     url = next(asset['browser_download_url'] for asset in data['assets'] if asset['name'] == '$ZIP_FILE')
-    print(url)
+    print(f'{tag} {url}')
 except Exception as e:
     print('')
 ")
@@ -24,6 +25,7 @@ if [ -z "$DOWNLOAD_URL" ]; then
   exit 1
 fi
 
+echo "🚀 최신 릴리즈 버전: $LATEST_TAG"
 echo "⬇️ 다운로드 중: $DOWNLOAD_URL"
 
 # 임시 디렉토리 생성 및 다운로드
