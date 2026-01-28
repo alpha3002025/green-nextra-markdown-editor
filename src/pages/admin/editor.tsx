@@ -268,6 +268,8 @@ export default function Editor() {
     const [content, setContent] = useState('')
     const [debouncedContent, setDebouncedContent] = useState('') // Debounced content for heavy tasks
     const [initialContent, setInitialContent] = useState('')
+    const contentRef = useRef('')
+    const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
     const [status, setStatus] = useState('')
     const [isSidebarOpen, setSidebarOpen] = useState(true)
     const [toastMsg, setToastMsg] = useState('')
@@ -514,13 +516,16 @@ export default function Editor() {
         }
     }, [open])
 
-    // Debounce content update
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setDebouncedContent(content);
-        }, 300); // 300ms delay
-        return () => clearTimeout(timer);
-    }, [content]);
+    // Optimized content change handler with debounce
+    const handleContentChange = useCallback((val: string) => {
+        contentRef.current = val;
+
+        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = setTimeout(() => {
+            setContent(val);
+            setDebouncedContent(val);
+        }, 150);
+    }, []);
 
     // Extract headers when debounced content changes
     useEffect(() => {
@@ -696,6 +701,8 @@ export default function Editor() {
         if (res.ok) {
             const data = await res.json()
             setContent(data.content)
+            setDebouncedContent(data.content)
+            contentRef.current = data.content
             setInitialContent(data.content)
 
             router.push(`/admin/editor?open=${slug}`, undefined, { shallow: true })
@@ -708,14 +715,23 @@ export default function Editor() {
     const savePost = useCallback(async () => {
         if (!currentPost) return
         setStatus('Saving...')
+
+        // Get latest content from view or ref to ensure we save what's on screen
+        const latestContent = editorViewRef.current?.view?.state.doc.toString() ?? contentRef.current ?? content;
+
         const res = await fetch(`/api/post?slug=${currentPost}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content })
+            body: JSON.stringify({ content: latestContent })
         })
         if (res.ok) {
             setStatus('Saved')
-            setInitialContent(content)
+            // Sync all states to be sure
+            setInitialContent(latestContent)
+            setContent(latestContent)
+            setDebouncedContent(latestContent)
+            contentRef.current = latestContent;
+
             setTimeout(() => setStatus(''), 2000)
             window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Saved successfully' }))
         } else {
@@ -1189,7 +1205,9 @@ export default function Editor() {
         linesWithoutSource.splice(insertAt, 0, ...sourceBlock);
 
         const newContent = linesWithoutSource.join('\n');
+        contentRef.current = newContent;
         setContent(newContent);
+        setDebouncedContent(newContent);
 
         setDraggedHeaderIndex(null);
         window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Section moved' }));
@@ -1326,7 +1344,10 @@ export default function Editor() {
                                 <select
                                     className={styles.viewModeSelect}
                                     value={viewMode}
-                                    onChange={(e) => setViewMode(e.target.value as 'source' | 'preview' | 'both' | 'live')}
+                                    onChange={(e) => {
+                                        setInitialContent(contentRef.current);
+                                        setViewMode(e.target.value as 'source' | 'preview' | 'both' | 'live');
+                                    }}
                                 >
                                     <option value="both">Both Mode</option>
                                     <option value="live">Live Mode</option>
@@ -1481,13 +1502,16 @@ export default function Editor() {
                                 }}
                             >
                                 <div className={styles.liveEditorContainer} style={{ padding: 0 }}>
-                                    <CodeMirrorEditor
-                                        ref={editorViewRef}
-                                        value={content}
-                                        onChange={setContent}
-                                        onImageUpload={processFileUpload}
-                                        className={styles.liveEditor}
-                                    />
+                                    {viewMode !== 'live' && (
+                                        <CodeMirrorEditor
+                                            ref={editorViewRef}
+                                            key={currentPost}
+                                            value={initialContent}
+                                            onChange={handleContentChange}
+                                            onImageUpload={processFileUpload}
+                                            className={styles.liveEditor}
+                                        />
+                                    )}
                                 </div>
                             </div>
 
@@ -1590,13 +1614,16 @@ export default function Editor() {
                                 style={{ display: viewMode === 'live' ? 'block' : 'none' }}
                             >
                                 <div className={styles.liveEditorContainer}>
-                                    <CodeMirrorEditor
-                                        ref={editorViewRef}
-                                        value={content}
-                                        onChange={setContent}
-                                        onImageUpload={processFileUpload}
-                                        className={styles.liveEditor}
-                                    />
+                                    {viewMode === 'live' && (
+                                        <CodeMirrorEditor
+                                            ref={editorViewRef}
+                                            key={currentPost}
+                                            value={initialContent}
+                                            onChange={handleContentChange}
+                                            onImageUpload={processFileUpload}
+                                            className={styles.liveEditor}
+                                        />
+                                    )}
                                 </div>
                             </div>
 
