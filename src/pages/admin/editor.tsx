@@ -748,8 +748,15 @@ export default function Editor() {
         if (!currentPost) return
         setStatus('Saving...')
 
+        // Capture current cursor position before saving
+        const editor = editorViewRef.current?.view;
+        let savedSelection: any = null;
+        if (editor) {
+            savedSelection = editor.state.selection;
+        }
+
         // Get latest content from view or ref to ensure we save what's on screen
-        const latestContent = editorViewRef.current?.view?.state.doc.toString() ?? contentRef.current ?? content;
+        const latestContent = editor?.state.doc.toString() ?? contentRef.current ?? content;
 
         const res = await fetch(`/api/post?slug=${currentPost}`, {
             method: 'PUT',
@@ -758,11 +765,23 @@ export default function Editor() {
         })
         if (res.ok) {
             setStatus('Saved')
-            // Sync all states to be sure
+            // Sync initialContent to mark as "clean" (not dirty)
             setInitialContent(latestContent)
-            setContent(latestContent)
-            setDebouncedContent(latestContent)
+
+            // Do NOT call setContent(latestContent) here.
+            // The editor already has this content. Calling setContent causes React to re-render
+            // the CodeMirror component with a new 'value' prop, which resets the editor state (cursor).
+            // contentRef is enough for our internal tracking.
             contentRef.current = latestContent;
+
+            // Restore cursor position if needed
+            if (editor && savedSelection) {
+                // Focus the editor to ensure selection is applied visibly
+                editor.focus();
+                editor.dispatch({
+                    selection: savedSelection
+                });
+            }
 
             setTimeout(() => setStatus(''), 2000)
             window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Saved successfully' }))
