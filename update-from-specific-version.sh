@@ -71,6 +71,11 @@ if [ -f "$SOURCE_DIR/eslint.config.mjs" ]; then
     cp -a "$SOURCE_DIR/eslint.config.mjs" eslint.config.mjs
 fi
 
+# 3. 릴리즈 업데이트 스크립트 복사
+cp -a "$SOURCE_DIR/update-from-release.sh" update-from-release.sh
+cp -a "$SOURCE_DIR/update-from-specific-release.sh" update-from-specific-release.sh
+cp -a "$SOURCE_DIR/patch-upstream.sh" patch-upstream.sh
+
 echo "🧹 임시 파일 정리 중..."
 rm -rf "$TEMP_DIR"
 
