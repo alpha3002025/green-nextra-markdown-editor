@@ -214,7 +214,92 @@ const CodeMirrorEditor = forwardRef<ReactCodeMirrorRef, CodeMirrorEditorProps>((
             ".cm-content": { caretColor: "#42b883", lineHeight: "1.6" },
             ".cm-scroller": { fontFamily: '"Fira Code", "Fira Mono", monospace', lineHeight: "1.6" },
             "&.cm-focused": { outline: "none" },
-            ".cm-codeblock-line": { backgroundColor: "rgba(66, 184, 131, 0.1)" }
+            ".cm-codeblock-line": { backgroundColor: "rgba(66, 184, 131, 0.1)" },
+
+            // Search Panel Customization
+            ".cm-panels": {
+                borderColor: "#eee",
+                backgroundColor: "#fff",
+                zIndex: "100" // Ensure it sits above other elements
+            },
+            ".cm-panel.cm-search": {
+                padding: "10px 14px",
+                backgroundColor: "#fff", // Clean white background
+                fontFamily: "inherit",
+                boxShadow: "0 -2px 10px rgba(0,0,0,0.05)",
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                gap: "8px"
+            },
+            ".cm-textfield": {
+                border: "1px solid #e1e4e8",
+                borderRadius: "6px",
+                padding: "6px 10px",
+                outline: "none",
+                fontSize: "0.9rem",
+                transition: "all 0.2s ease",
+                minWidth: "200px" // Slightly wider inputs
+            },
+            ".cm-textfield:focus": {
+                borderColor: "#42b883",
+                boxShadow: "0 0 0 3px rgba(66, 184, 131, 0.15)"
+            },
+            ".cm-button": {
+                backgroundImage: "none",
+                backgroundColor: "#f6f8fa",
+                border: "1px solid #d1d5da",
+                borderRadius: "6px",
+                padding: "5px 12px",
+                fontSize: "0.85rem",
+                fontWeight: "500",
+                color: "#24292e",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+                textTransform: "none" // Reset any default
+            },
+            ".cm-button:hover": {
+                borderColor: "#42b883",
+                color: "#42b883",
+                backgroundColor: "#fff"
+            },
+            ".cm-button:active": {
+                backgroundColor: "rgba(66, 184, 131, 0.1)",
+                transform: "translateY(1px)"
+            },
+            // Specific button styles if reachable by name attribute selector (CodeMirror usually names them)
+            ".cm-search label": {
+                fontSize: "0.85rem",
+                marginRight: "8px",
+                color: "#586069",
+                display: "inline-flex",
+                alignItems: "center",
+                cursor: "pointer",
+                userSelect: "none"
+            },
+            ".cm-search input[type='checkbox']": {
+                marginRight: "6px",
+                accentColor: "#42b883",
+                cursor: "pointer"
+            },
+            // Close button (x)
+            ".cm-search button[name='close']": {
+                backgroundColor: "transparent",
+                border: "none",
+                fontSize: "1.2rem",
+                padding: "0 8px",
+                color: "#999",
+                cursor: "pointer",
+                marginLeft: "auto", // Push to right
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+            },
+            ".cm-search button[name='close']:hover": {
+                color: "#e53e3e",
+                backgroundColor: "transparent",
+                borderColor: "transparent"
+            }
         }),
         codeBlockBackgroundPlugin
     ], [eventHandlers, keyMaps]);
