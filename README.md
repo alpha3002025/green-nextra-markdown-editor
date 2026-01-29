@@ -68,6 +68,15 @@ You can find the `{{Release Version}}` in the **Releases** section of the GitHub
 <br/>
 <br/>
 
+**💡💡💡 What if you don't see `update-from-release.sh`, `specific-version.sh`, or `patch-upstream.sh`?**<br/>
+You might be visiting this repository from a very early version of the project. Please download them directly via the links below and execute them. After that, you will be able to update to the latest version.
+- update-from-release.sh : https://github.com/alpha3002025/green-nextra-markdown-editor/blob/main/update-from-release.sh
+- update-from-specific-version.sh : https://github.com/alpha3002025/green-nextra-markdown-editor/blob/main/update-from-specific-version.sh
+- patch-upstream.sh : https://github.com/alpha3002025/green-nextra-markdown-editor/blob/main/patch-upstream.sh
+
+<br/>
+<br/>
+
 ## Update Features - Using GitHub
 
 Run the following command to update the latest features from the upstream repository:

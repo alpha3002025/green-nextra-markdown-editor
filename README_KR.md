@@ -85,7 +85,11 @@ source update-from-specific-version.sh {{릴리즈 버전}}
 
 
 
-
+**💡💡💡 만약 update-from-release.sh, specific-version.sh, patch-upstream.sh 이 보이지 않는다면?**<br/>
+아마도 프로젝트의 매우 초창기에 이 리포지터리에 방문한 분이실 것으로 보입니다. 아래 링크를 통해 직접 다운로드 후 실행해주시면, 그 이후부터 최신 버전을 반영하실 수 있습니다.
+- update-from-release.sh : https://github.com/alpha3002025/green-nextra-markdown-editor/blob/main/update-from-release.sh
+- update-from-specific-version.sh : https://github.com/alpha3002025/green-nextra-markdown-editor/blob/main/update-from-specific-version.sh
+- patch-upstream.sh : https://github.com/alpha3002025/green-nextra-markdown-editor/blob/main/patch-upstream.sh
 
 
 
