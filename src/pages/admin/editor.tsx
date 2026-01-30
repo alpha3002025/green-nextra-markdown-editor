@@ -337,11 +337,11 @@ export default function Editor() {
 
     useEffect(() => {
         if (open && typeof open === 'string') {
-            if (!currentPost) {
+            if (open !== currentPost) {
                 loadPost(open)
             }
         }
-    }, [open])
+    }, [open, currentPost])
 
     useEffect(() => {
         const handleClick = () => setContextMenu(null);
