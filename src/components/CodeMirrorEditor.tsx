@@ -132,6 +132,13 @@ export const insertTextAtCursor = (view: EditorView, textToInsert: string) => {
 }
 
 const CodeMirrorEditor = forwardRef<ReactCodeMirrorRef, CodeMirrorEditorProps>(({ value, onChange, onImageUpload, className, style }, ref) => {
+    // Internal state to isolate editor updates from parent re-renders
+    const [localValue, setLocalValue] = React.useState(value);
+
+    // Sync localValue when parent value changes (e.g., file load)
+    React.useEffect(() => {
+        setLocalValue(value);
+    }, [value]);
 
     // Handlers for Paste/Drop
     const eventHandlers = useMemo(() => EditorView.domEventHandlers({
@@ -304,13 +311,19 @@ const CodeMirrorEditor = forwardRef<ReactCodeMirrorRef, CodeMirrorEditorProps>((
         codeBlockBackgroundPlugin
     ], [eventHandlers, keyMaps]);
 
+    // Handle internal change
+    const handleChange = useCallback((val: string, viewUpdate: ViewUpdate) => {
+        setLocalValue(val);
+        onChange(val);
+    }, [onChange]);
+
     return (
         <CodeMirror
             ref={ref}
-            value={value}
+            value={localValue}
             height="100%"
             extensions={extensions}
-            onChange={onChange}
+            onChange={handleChange}
             className={className}
             style={style}
             basicSetup={{
@@ -323,4 +336,4 @@ const CodeMirrorEditor = forwardRef<ReactCodeMirrorRef, CodeMirrorEditorProps>((
     );
 });
 
-export default CodeMirrorEditor;
+export default React.memo(CodeMirrorEditor);
