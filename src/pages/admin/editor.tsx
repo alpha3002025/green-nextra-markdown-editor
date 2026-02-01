@@ -16,6 +16,9 @@ import CodeMirrorEditor, { toggleWrapper, insertTextAtCursor } from '@/component
 import { ReactCodeMirrorRef } from '@uiw/react-codemirror';
 import { EditorView } from '@codemirror/view';
 import rehypeRaw from 'rehype-raw'; // Support HTML in markdown
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+
 import { YouTubeEmbed, getYouTubeId } from '@/components/YouTubeEmbed';
 import { LinkPreview } from '@/components/LinkPreview';
 import { Inter } from 'next/font/google'
@@ -1205,8 +1208,8 @@ export default function Editor() {
                             <div className={`${styles.pane} ${styles.previewPane}`} style={{ display: (viewMode === 'source' || viewMode === 'live') ? 'none' : 'flex', flex: viewMode === 'both' ? `${1 - editorRatio}` : '1' }}>
                                 <div className={`${styles.previewContent} prose max-w-none`}>
                                     <ReactMarkdown
-                                        remarkPlugins={[remarkGfm]}
-                                        rehypePlugins={[rehypeRaw]}
+                                        remarkPlugins={[remarkGfm, remarkMath]}
+                                        rehypePlugins={[rehypeRaw, rehypeKatex]}
                                         urlTransform={(url) => {
                                             if (url.startsWith('./img/') && currentPost) {
                                                 return `/api/image_preview?slug=${currentPost}&file=${url.replace('./img/', '')}`

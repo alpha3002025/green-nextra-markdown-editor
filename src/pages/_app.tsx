@@ -1,4 +1,6 @@
 import "@/styles/globals.css";
+import 'katex/dist/katex.min.css';
+
 import type { AppProps } from "next/app";
 import { useRouter } from "next/router";
 import Link from "next/link";
