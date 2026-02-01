@@ -218,8 +218,8 @@ const CodeMirrorEditor = forwardRef<ReactCodeMirrorRef, CodeMirrorEditorProps>((
         EditorView.lineWrapping,
         EditorView.theme({
             "&": { height: "100%", fontSize: "16px", fontFamily: '"Fira Code", "Fira Mono", monospace' },
-            ".cm-content": { caretColor: "#42b883", lineHeight: "1.6" },
-            ".cm-scroller": { fontFamily: '"Fira Code", "Fira Mono", monospace', lineHeight: "1.6" },
+            ".cm-content": { caretColor: "#42b883", lineHeight: "1.6", padding: "2rem" },
+            ".cm-scroller": { fontFamily: '"Fira Code", "Fira Mono", monospace', lineHeight: "1.6", overscrollBehaviorY: "none" },
             "&.cm-focused": { outline: "none" },
             ".cm-codeblock-line": { backgroundColor: "rgba(66, 184, 131, 0.1)" },
 
