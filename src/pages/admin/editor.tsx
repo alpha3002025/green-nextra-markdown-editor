@@ -938,7 +938,10 @@ export default function Editor() {
                 } catch { }
 
                 await fetchPosts();
-                if (currentPost === node.path) setTimeout(() => loadPost(newPath), 100);
+                if (currentPost === node.path) {
+                    setCurrentPost(newPath); // Update currentPost immediately to prevent saving to old path
+                    setTimeout(() => loadPost(newPath), 100);
+                }
 
             } else if (action === 'delete') {
                 if (!confirm(`Are you sure you want to delete ${node.name}?`)) return;
