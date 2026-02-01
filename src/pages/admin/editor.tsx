@@ -394,7 +394,7 @@ export default function Editor() {
     }
 
     const loadPost = async (slug: string) => {
-        setCurrentPost(slug)
+        setStatus('Loading...')
         const res = await fetch(`/api/post?slug=${slug}&t=${Date.now()}`)
         if (res.ok) {
             const data = await res.json()
@@ -403,6 +403,8 @@ export default function Editor() {
             contentRef.current = data.content
             setInitialContent(data.content)
             setEditorValue(data.content) // Set editorValue only once on load
+            setCurrentPost(slug)
+            setStatus('')
         }
     }
 
