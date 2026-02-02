@@ -26,16 +26,106 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
             const p = helpers.getSafePath(targetPath)
 
-            if (fs.existsSync(p)) return res.status(400).json({ error: 'Path already exists' })
+            if (type === 'duplicate') {
+                if (!fs.existsSync(p)) return res.status(404).json({ error: 'Source not found' })
+            } else {
+                if (fs.existsSync(p)) return res.status(400).json({ error: 'Path already exists' })
+            }
 
             if (type === 'directory') {
                 fs.mkdirSync(p, { recursive: true })
+            } else if (type === 'duplicate') {
+                // Determine destination path
+                const ext = path.extname(p);
+                const dir = path.dirname(p);
+                const name = path.basename(p, ext);
+
+                let newName = `${name}-copy`;
+                let newFilename = `${newName}${ext}`;
+                let destPath = path.join(dir, newFilename);
+
+                // Auto-increment rename if exists
+                let counter = 1;
+                while (fs.existsSync(destPath)) {
+                    newName = `${name}-copy${counter}`;
+                    newFilename = `${newName}${ext}`;
+                    destPath = path.join(dir, newFilename);
+                    counter++;
+                }
+
+                // Copy File
+                // If it is a directory, use cpSync with recursive
+                const stats = fs.statSync(p);
+                if (stats.isDirectory()) {
+                    fs.cpSync(p, destPath, { recursive: true });
+                } else {
+                    fs.copyFileSync(p, destPath);
+
+                    // Handle Markdown Image Directory Duplication
+                    if (/\.(md|mdx)$/.test(p)) {
+                        let oldImgDirName = name;
+                        if (name === 'index') {
+                            oldImgDirName = path.basename(dir);
+                        }
+
+                        const oldImgDir = path.join(dir, 'img', oldImgDirName);
+                        const newImgDir = path.join(dir, 'img', newName);
+
+                        if (fs.existsSync(oldImgDir)) {
+                            // Ensure parent img dir exists
+                            const imgParent = path.dirname(newImgDir);
+                            if (!fs.existsSync(imgParent)) {
+                                fs.mkdirSync(imgParent, { recursive: true });
+                            }
+
+                            // Copy images
+                            const copyWithRename = (srcDir: string, destDir: string) => {
+                                fs.mkdirSync(destDir, { recursive: true });
+                                const entries = fs.readdirSync(srcDir, { withFileTypes: true });
+
+                                for (const entry of entries) {
+                                    const srcPath = path.join(srcDir, entry.name);
+                                    if (entry.isDirectory()) {
+                                        copyWithRename(srcPath, path.join(destDir, entry.name));
+                                    } else {
+                                        const fExt = path.extname(entry.name);
+                                        const fBase = path.basename(entry.name, fExt);
+                                        const newBase = `${fBase}-copy${fExt}`;
+                                        fs.copyFileSync(srcPath, path.join(destDir, newBase));
+                                    }
+                                }
+                            };
+                            try { copyWithRename(oldImgDir, newImgDir); } catch (e) { }
+
+                            // Update Content paths
+                            const content = fs.readFileSync(destPath, 'utf8');
+                            // Replace `img/oldImgDirName/` with `img/newName/`
+                            const escapedName = oldImgDirName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            const regex = new RegExp(`img/${escapedName}/([^)\\s"]+)`, 'g');
+
+                            const newContent = content.replace(regex, (match, filename) => {
+                                const parts = filename.split('/');
+                                const filePart = parts.pop();
+                                if (!filePart) return match;
+                                const fExt = path.extname(filePart);
+                                const fBase = path.basename(filePart, fExt);
+                                const newBase = `${fBase}-copy${fExt}`;
+                                const newPath = parts.length > 0 ? parts.join('/') + '/' + newBase : newBase;
+                                return `img/${newName}/${newPath}`;
+                            });
+
+                            fs.writeFileSync(destPath, newContent);
+                        }
+                    }
+                }
+                return res.status(200).json({ success: true, newName: newName })
             } else {
                 // assume file
                 const content = `# New File\n\nCreated at ${new Date().toISOString()}`
                 fs.writeFileSync(p, content)
+                return res.status(200).json({ success: true })
             }
-            return res.status(200).json({ success: true })
+
         }
 
         if (req.method === 'PUT') {
@@ -121,6 +211,22 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
                 fs.rmSync(p, { recursive: true, force: true })
             } else {
                 fs.unlinkSync(p)
+
+                // Remove associated image folder if it exists
+                if (/\.(md|mdx)$/.test(p)) {
+                    const ext = path.extname(p);
+                    const name = path.basename(p, ext);
+                    const dir = path.dirname(p);
+                    const imgDir = path.join(dir, 'img', name);
+
+                    if (fs.existsSync(imgDir)) {
+                        try {
+                            fs.rmSync(imgDir, { recursive: true, force: true });
+                        } catch (imgErr) {
+                            console.error('Failed to remove image directory:', imgErr);
+                        }
+                    }
+                }
             }
             return res.status(200).json({ success: true })
         }

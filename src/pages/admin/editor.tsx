@@ -266,6 +266,7 @@ export default function Editor() {
     const [isSidebarOpen, setSidebarOpen] = useState(true)
     const [toastMsg, setToastMsg] = useState('')
     const [viewMode, setViewMode] = useState<'source' | 'preview' | 'both' | 'live'>('both')
+    const [isDuplicating, setIsDuplicating] = useState(false);
 
     // Layout States
     const [tocWidth, setTocWidth] = useState(250);
@@ -849,7 +850,7 @@ export default function Editor() {
         }
     }
 
-    const handleFSAction = async (action: 'new_file' | 'new_folder' | 'rename' | 'delete') => {
+    const handleFSAction = async (action: 'new_file' | 'new_folder' | 'rename' | 'delete' | 'duplicate') => {
         if (!contextMenu) return;
         const { node } = contextMenu;
         setContextMenu(null);
@@ -970,9 +971,40 @@ export default function Editor() {
                 } else {
                     fetchPosts();
                 }
+            } else if (action === 'duplicate') {
+                setIsDuplicating(true);
+                try {
+                    const res = await fetch('/api/fs', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'duplicate', path: node.path })
+                    });
+                    if (!res.ok) throw new Error('Failed to duplicate');
+
+                    const data = await res.json();
+
+                    try {
+                        const newKey = data.newName;
+                        const parts = node.path.split('/');
+                        parts.pop(); // remove file
+
+                        const parent = parts.join('/');
+
+                        await fetch('/api/meta', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ path: parent || '', key: newKey, title: newKey })
+                        });
+                    } catch { }
+
+                    await fetchPosts();
+                } finally {
+                    setIsDuplicating(false);
+                }
             }
         } catch (e: any) {
             alert(e.message);
+            setIsDuplicating(false);
         }
     }
 
@@ -1046,6 +1078,12 @@ export default function Editor() {
             <Toast message={toastMsg} />
 
             {/* Sidebar */}
+            {isDuplicating && (
+                <div className={styles.loadingOverlay}>
+                    <div className={styles.spinner}></div>
+                    <div className={styles.loadingText}>Duplicating...</div>
+                </div>
+            )}
             <div
                 className={styles.sidebar}
                 style={{
@@ -1089,6 +1127,7 @@ export default function Editor() {
                     <div className={styles.contextMenuHeader}>{contextMenu.node.name || 'Root'}</div>
                     <div className={styles.contextMenuItem} onClick={() => handleFSAction('new_file')}><FileText size={14} /> New File</div>
                     <div className={styles.contextMenuItem} onClick={() => handleFSAction('new_folder')}><Plus size={14} /> New Folder</div>
+                    <div className={styles.contextMenuItem} onClick={() => handleFSAction('duplicate')}><Copy size={14} /> Duplicate File</div>
                     {contextMenu.node.path !== '' && (
                         <>
                             <div className={styles.contextMenuDivider} />
