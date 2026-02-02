@@ -132,6 +132,8 @@ const FileTreeItem = ({
     level,
     onLoadPost,
     currentPost,
+    selectedPaths,
+    onSelect,
     onContextMenu,
     onDragStart,
     onDragOver,
@@ -142,6 +144,8 @@ const FileTreeItem = ({
     level: number,
     onLoadPost: (slug: string) => void,
     currentPost: string | null,
+    selectedPaths: Set<string>,
+    onSelect: (node: FileNode, multi: boolean, listSelect: boolean) => void,
     onContextMenu: (e: React.MouseEvent, node: FileNode) => void,
     onDragStart: (e: React.DragEvent, node: FileNode) => void,
     onDragOver: (e: React.DragEvent, node: FileNode) => void,
@@ -151,11 +155,21 @@ const FileTreeItem = ({
     const [isOpen, setIsOpen] = useState(false);
     const [dragState, setDragState] = useState<'none' | 'top' | 'bottom' | 'inside'>('none');
 
-    const handleClick = () => {
+    const handleClick = (e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent bubbling to parent items
+        const isMulti = e.metaKey || e.ctrlKey;
+        const isListSelect = e.shiftKey;
+
+        // Call select handler
+        onSelect(node, isMulti, isListSelect);
+
         if (node.type === 'directory') {
             setIsOpen(!isOpen);
         } else if (node.slug) {
-            onLoadPost(node.slug);
+            // Only load post if standard click (not multi-select operation)
+            // But usually we want to see what we click.
+            // Let's load only if single click without modifiers?
+            if (!isMulti && !isListSelect) onLoadPost(node.slug);
         }
     }
 
@@ -193,6 +207,7 @@ const FileTreeItem = ({
     };
 
     const isActive = node.slug === currentPost;
+    const isSelected = selectedPaths.has(node.path);
 
     let borderStyle = {};
     if (dragState === 'top') borderStyle = { borderTop: '2px solid #42b883' };
@@ -210,8 +225,9 @@ const FileTreeItem = ({
                 className={styles.postItem}
                 style={{
                     paddingLeft: `${1 + level * 0.8}rem`,
-                    backgroundColor: dragState === 'inside' ? 'rgba(66, 184, 131, 0.2)' : (isActive ? 'rgba(66, 184, 131, 0.1)' : 'transparent'),
-                    color: isActive ? '#42b883' : 'inherit',
+                    backgroundColor: dragState !== 'none' ? (dragState === 'inside' ? 'rgba(66, 184, 131, 0.2)' : 'transparent') :
+                        (isSelected ? 'rgba(66, 184, 131, 0.3)' : (isActive ? 'rgba(66, 184, 131, 0.1)' : 'transparent')),
+                    color: (isActive || isSelected) ? '#42b883' : 'inherit',
                     transition: 'all 0.1s',
                     ...borderStyle
                 }}
@@ -237,6 +253,8 @@ const FileTreeItem = ({
                             level={level + 1}
                             onLoadPost={onLoadPost}
                             currentPost={currentPost}
+                            selectedPaths={selectedPaths}
+                            onSelect={onSelect}
                             onContextMenu={onContextMenu}
                             onDragStart={onDragStart}
                             onDragOver={onDragOver}
@@ -267,6 +285,7 @@ export default function Editor() {
     const [toastMsg, setToastMsg] = useState('')
     const [viewMode, setViewMode] = useState<'source' | 'preview' | 'both' | 'live'>('both')
     const [isDuplicating, setIsDuplicating] = useState(false);
+    const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
 
     // Layout States
     const [tocWidth, setTocWidth] = useState(250);
@@ -671,6 +690,19 @@ export default function Editor() {
 
 
     // --- File System Handlers ---
+    const handleNodeSelect = (node: FileNode, multi: boolean, listSelect: boolean) => {
+        setSelectedPaths(prev => {
+            const next = new Set(multi ? prev : []);
+            if (multi) {
+                if (next.has(node.path)) next.delete(node.path);
+                else next.add(node.path);
+            } else {
+                next.add(node.path);
+            }
+            return next;
+        });
+    };
+
     const handleNodeDragStart = (e: React.DragEvent, node: FileNode) => {
         setDraggedNode(node);
         e.dataTransfer.setData('text/plain', node.path);
@@ -688,7 +720,15 @@ export default function Editor() {
 
     const handleNodeDrop = async (e: React.DragEvent, targetNode: FileNode) => {
         e.preventDefault();
-        if (!draggedNode || draggedNode.path === targetNode.path) return;
+        if (!draggedNode) return;
+
+        const targets = selectedPaths.has(draggedNode.path)
+            ? Array.from(selectedPaths).map(p => ({ path: p, name: p.split('/').pop() || '', type: 'file' } as FileNode))
+            : [draggedNode];
+
+        // Filter invalid targets (self or moving parent into child)
+        const validTargets = targets.filter(t => t.path !== targetNode.path && !targetNode.path.startsWith(t.path + '/'));
+        if (validTargets.length === 0) return;
 
         const rect = e.currentTarget.getBoundingClientRect();
         const y = e.clientY - rect.top;
@@ -705,27 +745,31 @@ export default function Editor() {
         }
 
         if (position === 'inside') {
-            await moveNode(draggedNode, targetNode.path);
+            for (const t of validTargets) {
+                await moveNode(t, targetNode.path);
+            }
         } else {
             const parts = targetNode.path.split('/');
             parts.pop();
             const parentPath = parts.join('/');
 
-            const draggedParentParts = draggedNode.path.split('/');
-            draggedParentParts.pop();
-            const draggedParentPath = draggedParentParts.join('/');
+            for (const t of validTargets) {
+                const tParts = t.path.split('/');
+                tParts.pop();
+                const tParent = tParts.join('/');
 
-            if (parentPath === draggedParentPath) {
-                await reorderNode(draggedNode, targetNode, parentPath, position);
-            } else {
-                const newPath = parentPath ? `${parentPath}/${draggedNode.name}` : draggedNode.name;
-                const moveSuccess = await moveNode(draggedNode, parentPath || '/');
-                if (moveSuccess) {
-                    const updatedDraggedNode = { ...draggedNode, path: newPath };
-                    await reorderNode(updatedDraggedNode, targetNode, parentPath, position);
+                if (parentPath === tParent) {
+                    await reorderNode(t, targetNode, parentPath, position);
+                } else {
+                    const moveSuccess = await moveNode(t, parentPath || '/');
+                    if (moveSuccess) {
+                        const updatedNode = { ...t, path: parentPath ? `${parentPath}/${t.name}` : t.name };
+                        await reorderNode(updatedNode, targetNode, parentPath, position);
+                    }
                 }
             }
         }
+        setSelectedPaths(new Set());
     };
 
     const moveNode = async (node: FileNode, newParentPath: string) => {
@@ -945,32 +989,39 @@ export default function Editor() {
                 }
 
             } else if (action === 'delete') {
-                if (!confirm(`Are you sure you want to delete ${node.name}?`)) return;
-                const res = await fetch('/api/fs', {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ path: node.path })
-                });
-                if (!res.ok) throw new Error('Failed to delete');
+                const targetPaths = selectedPaths.has(node.path) ? Array.from(selectedPaths) : [node.path];
+                if (!confirm(`Are you sure you want to delete ${targetPaths.length > 1 ? `${targetPaths.length} items` : node.name}?`)) return;
 
-                const parts = node.path.split('/');
-                parts.pop();
-                const parent = parts.join('/');
-                try {
-                    const key = node.name.replace(/\.(md|mdx)$/, '');
-                    await fetch('/api/meta', {
-                        method: 'DELETE',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ folderPath: parent, key })
-                    });
-                } catch { }
+                for (const p of targetPaths) {
+                    try {
+                        const res = await fetch('/api/fs', {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ path: p })
+                        });
+                        if (!res.ok) {
+                            console.error(`Failed to delete ${p}`);
+                            continue;
+                        }
 
-                if (currentPost === node.slug) {
-                    const metaPath = parent ? `${parent}/_meta.json` : '_meta.json';
-                    setTimeout(() => { loadPost(metaPath); fetchPosts(); }, 100);
-                } else {
-                    fetchPosts();
+                        const parts = p.split('/');
+                        const name = parts.pop() || '';
+                        const parent = parts.join('/');
+
+                        const key = name.replace(/\.(md|mdx)$/, '');
+                        await fetch('/api/meta', {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ folderPath: parent, key })
+                        });
+                    } catch (e) {
+                        console.error(e);
+                    }
                 }
+
+                await fetchPosts();
+                setSelectedPaths(new Set()); // Clear selection
+                // Check if current post is deleted? We might need to handle redirection if needed.
             } else if (action === 'duplicate') {
                 setIsDuplicating(true);
                 try {
@@ -1110,6 +1161,8 @@ export default function Editor() {
                             level={0}
                             onLoadPost={(slug) => router.push(`/admin/editor?open=${slug}`, undefined, { shallow: true })}
                             currentPost={currentPost}
+                            selectedPaths={selectedPaths}
+                            onSelect={handleNodeSelect}
                             onContextMenu={handleContextMenu}
                             onDragStart={handleNodeDragStart}
                             onDragOver={handleNodeDragOver}
@@ -1133,7 +1186,10 @@ export default function Editor() {
                             <div className={styles.contextMenuDivider} />
                             <div className={styles.contextMenuItem} onClick={() => handleFSAction('rename')}><FileText size={14} /> Rename</div>
                             <div className={styles.contextMenuItem} onClick={() => handleMetaAction()}><FileText size={14} /> Rename Title (_meta)</div>
-                            <div className={styles.contextMenuItem} onClick={() => handleFSAction('delete')} style={{ color: '#e53e3e' }}><X size={14} /> Delete</div>
+                            <div className={styles.contextMenuItem} onClick={() => handleFSAction('delete')} style={{ color: '#e53e3e' }}>
+                                <X size={14} />
+                                Delete{selectedPaths.has(contextMenu.node.path) && selectedPaths.size > 1 ? ` (${selectedPaths.size})` : ''}
+                            </div>
                         </>
                     )}
                 </div>
