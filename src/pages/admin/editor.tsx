@@ -829,8 +829,8 @@ export default function Editor() {
             const siblings = findChildren(posts, parentPath);
             if (!siblings.length) return;
 
-            const getKey = (n: FileNode) => n.name.replace(/\.(md|mdx)$/, '');
-            let keys = siblings.map(getKey);
+            const getKey = (n: FileNode) => n.name.replace(/\.(md|mdx|json)$/, '');
+            let keys = siblings.map(getKey).filter(k => k !== '_meta');
             const movedKey = getKey(movedNode);
             const targetKey = getKey(targetNode);
 

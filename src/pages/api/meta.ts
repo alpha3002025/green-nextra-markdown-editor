@@ -78,7 +78,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
             metaDir = path.dirname(fullPath)
         }
 
-        // If targetPath is empty string (root), metaDir is PAGES_DIR
+        // If targetPath is empty string (root), metaDir = PAGES_DIR
         if (targetPath === '') {
             metaDir = PAGES_DIR
         }
@@ -223,6 +223,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         order.forEach((key: string) => {
             if (metaContent[key] !== undefined) {
                 newMeta[key] = metaContent[key]
+            } else {
+                newMeta[key] = key
             }
         })
         // Append any keys that were in original but not in order array (just in case)
