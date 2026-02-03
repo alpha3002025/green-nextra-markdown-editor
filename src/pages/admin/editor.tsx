@@ -1072,7 +1072,16 @@ export default function Editor() {
         if (dragHeaderPosition === 'bottom') adjustedTargetIndex = targetIndex + 1;
 
         const headers = toc;
-        const lines = content.split('\n');
+
+        // Use live editor content as source of truth to prevent stale state issues
+        let currentContent = content;
+        if (editorViewRef.current?.view) {
+            currentContent = editorViewRef.current.view.state.doc.toString();
+        } else {
+            currentContent = contentRef.current || content;
+        }
+
+        const lines = currentContent.split('\n');
         const headerLineIndices: number[] = [];
         let headerCount = 0;
         let inCodeBlock = false;
@@ -1113,6 +1122,15 @@ export default function Editor() {
 
         linesWithoutSource.splice(insertAt, 0, ...sourceBlock);
         const newContent = linesWithoutSource.join('\n');
+
+        // Sync CodeMirror Editor
+        if (editorViewRef.current?.view) {
+            const view = editorViewRef.current.view;
+            view.dispatch({
+                changes: { from: 0, to: view.state.doc.length, insert: newContent }
+            });
+        }
+
         contentRef.current = newContent;
         setContent(newContent);
         setDebouncedContent(newContent);
