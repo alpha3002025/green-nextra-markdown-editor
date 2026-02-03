@@ -34,6 +34,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
             if (type === 'directory') {
                 fs.mkdirSync(p, { recursive: true })
+                return res.status(200).json({ success: true })
             } else if (type === 'duplicate') {
                 // Determine destination path
                 const ext = path.extname(p);
