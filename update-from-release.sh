@@ -74,4 +74,9 @@ cp -a "$SOURCE_DIR/patch-upstream.sh" patch-upstream.sh
 echo "🧹 임시 파일 정리 중..."
 rm -rf "$TEMP_DIR"
 
-echo "✅ 업데이트 완료! 'npm install'을 실행하여 의존성을 갱신하세요."
+ehco ""
+echo "'npm install'을 실행하여 의존성을 갱신합니다"
+npm i 
+
+echo "✅ 업데이트 완료! (릴리즈 버전 : $LATEST_TAG)"
+

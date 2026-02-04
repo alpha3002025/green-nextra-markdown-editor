@@ -20,3 +20,6 @@ cp -a upstream/update-from-specific-release.sh update-from-specific-release.sh
 cp -a upstream/patch-upstream.sh patch-upstream.sh
 
 rm -rf upstream
+
+## npm i
+npm i
