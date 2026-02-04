@@ -268,6 +268,89 @@ const FileTreeItem = ({
     )
 }
 
+// Modal Component
+function Modal({ isOpen, type, title, message, defaultValue, onClose }: {
+    isOpen: boolean,
+    type: 'prompt' | 'confirm' | 'alert',
+    title: string,
+    message?: string,
+    defaultValue?: string,
+    onClose: (val: any) => void
+}) {
+    const [inputValue, setInputValue] = useState(defaultValue || '');
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            setInputValue(defaultValue || '');
+            if (type === 'prompt') {
+                setTimeout(() => inputRef.current?.focus(), 100);
+            }
+        }
+    }, [isOpen, defaultValue, type]);
+
+    const handleConfirm = () => {
+        if (type === 'prompt') onClose(inputValue);
+        else if (type === 'confirm') onClose(true);
+        else onClose(null);
+    }
+
+    const handleCancel = () => {
+        if (type === 'prompt') onClose(null);
+        else if (type === 'confirm') onClose(false);
+        else onClose(null);
+    }
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') handleConfirm();
+        if (e.key === 'Escape') handleCancel();
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className={styles.modalOverlay} onMouseDown={handleCancel}>
+            <div className={styles.modal} onMouseDown={(e) => e.stopPropagation()}>
+                <div className={styles.modalHeader}>
+                    {type === 'alert' && <span style={{ color: '#42b883' }}>ℹ</span>}
+                    {type === 'confirm' && <span style={{ color: '#eab308' }}>?</span>}
+                    {type === 'prompt' && <span style={{ color: '#42b883' }}>✎</span>}
+                    {title}
+                </div>
+                <div className={styles.modalBody}>
+                    {message && <p style={{ fontSize: '0.95rem', color: '#555', lineHeight: '1.5' }}>{message}</p>}
+                    {type === 'prompt' && (
+                        <div>
+
+                            <input
+                                ref={inputRef}
+                                className={styles.modalInput}
+                                value={inputValue}
+                                onChange={(e) => setInputValue(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                placeholder="Enter value..."
+                            />
+                        </div>
+                    )}
+                </div>
+                <div className={styles.modalFooter}>
+                    {type !== 'alert' && (
+                        <button className={`${styles.modalBtn} ${styles.modalBtnSecondary}`} onClick={handleCancel}>
+                            Cancel
+                        </button>
+                    )}
+                    <button
+                        className={`${styles.modalBtn} ${type === 'confirm' && message?.includes('delete') ? styles.modalBtnDanger : styles.modalBtnPrimary}`}
+                        onClick={handleConfirm}
+                    >
+                        {type === 'alert' ? 'OK' : (type === 'confirm' ? 'Confirm' : 'Submit')}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function Editor() {
     const router = useRouter()
     const { open } = router.query
@@ -286,6 +369,41 @@ export default function Editor() {
     const [viewMode, setViewMode] = useState<'source' | 'preview' | 'both' | 'live'>('both')
     const [isDuplicating, setIsDuplicating] = useState(false);
     const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
+
+    // --- Modal State ---
+    const [modalConfig, setModalConfig] = useState<{
+        isOpen: boolean;
+        type: 'prompt' | 'confirm' | 'alert';
+        title: string;
+        message?: string;
+        defaultValue?: string;
+        resolve?: (value: any) => void;
+    }>({ isOpen: false, type: 'alert', title: '' });
+
+    const showPrompt = useCallback((title: string, defaultValue: string = ''): Promise<string | null> => {
+        return new Promise((resolve) => {
+            setModalConfig({ isOpen: true, type: 'prompt', title, defaultValue, resolve });
+        });
+    }, []);
+
+    const showConfirm = useCallback((message: string): Promise<boolean> => {
+        return new Promise((resolve) => {
+            setModalConfig({ isOpen: true, type: 'confirm', title: 'Confirm Action', message, resolve });
+        });
+    }, []);
+
+    const showAlert = useCallback((message: string): Promise<void> => {
+        return new Promise((resolve) => {
+            setModalConfig({ isOpen: true, type: 'alert', title: 'System Message', message, resolve: () => resolve() });
+        });
+    }, []);
+
+    const handleModalClose = (value: any) => {
+        if (modalConfig.resolve) {
+            modalConfig.resolve(value);
+        }
+        setModalConfig(prev => ({ ...prev, isOpen: false }));
+    };
 
     // Layout States
     const [tocWidth, setTocWidth] = useState(250);
@@ -870,7 +988,7 @@ export default function Editor() {
         const { node } = contextMenu;
         setContextMenu(null);
 
-        const newTitle = prompt('Enter new title for sidebar (updates _meta.json):');
+        const newTitle = await showPrompt('Enter new title for sidebar (updates _meta.json):');
         if (!newTitle) return;
 
         let key = node.name.replace(/\.(md|mdx)$/, '');
@@ -890,7 +1008,7 @@ export default function Editor() {
             const metaFile = parentPath ? `${parentPath}/_meta.json` : '_meta.json';
             if (currentPost === metaFile) loadPost(metaFile);
         } catch (e: any) {
-            alert(e.message);
+            await showAlert(e.message);
         }
     }
 
@@ -909,7 +1027,7 @@ export default function Editor() {
 
         try {
             if (action === 'new_file') {
-                let name = prompt('Enter new file name (e.g. hello.md):');
+                let name = await showPrompt('Enter new file name (e.g. hello.md):');
                 if (!name) return;
                 if (!/\.(md|mdx)$/.test(name)) name += '.md';
                 const path = creationBase ? `${creationBase}/${name}` : name;
@@ -936,7 +1054,7 @@ export default function Editor() {
                 setTimeout(() => loadPost(path), 200);
 
             } else if (action === 'new_folder') {
-                const name = prompt('Enter new folder name:');
+                const name = await showPrompt('Enter new folder name:');
                 if (!name) return;
                 const path = creationBase ? `${creationBase}/${name}` : name;
 
@@ -959,7 +1077,7 @@ export default function Editor() {
 
                 fetchPosts();
             } else if (action === 'rename') {
-                const newName = prompt('Enter new name:', node.name);
+                const newName = await showPrompt('Enter new name:', node.name);
                 if (!newName || newName === node.name) return;
                 const parts = node.path.split('/');
                 parts.pop();
@@ -993,7 +1111,8 @@ export default function Editor() {
 
             } else if (action === 'delete') {
                 const targetPaths = selectedPaths.has(node.path) ? Array.from(selectedPaths) : [node.path];
-                if (!confirm(`Are you sure you want to delete ${targetPaths.length > 1 ? `${targetPaths.length} items` : node.name}?`)) return;
+                const confirmed = await showConfirm(`Are you sure you want to delete ${targetPaths.length > 1 ? `${targetPaths.length} items` : node.name}?`);
+                if (!confirmed) return;
 
                 for (const p of targetPaths) {
                     try {
@@ -1057,7 +1176,7 @@ export default function Editor() {
                 }
             }
         } catch (e: any) {
-            alert(e.message);
+            await showAlert(e.message);
             setIsDuplicating(false);
         }
     }
@@ -1148,6 +1267,7 @@ export default function Editor() {
             </Head>
 
             <Toast message={toastMsg} />
+            <Modal {...modalConfig} onClose={handleModalClose} />
 
             {/* Sidebar */}
             {isDuplicating && (
