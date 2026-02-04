@@ -983,9 +983,12 @@ export default function Editor() {
                 } catch { }
 
                 await fetchPosts();
-                if (currentPost === node.path) {
-                    setCurrentPost(newPath); // Update currentPost immediately to prevent saving to old path
-                    setTimeout(() => loadPost(newPath), 100);
+                if (currentPost && (currentPost === node.path || currentPost.startsWith(node.path + '/'))) {
+                    const suffix = currentPost.substring(node.path.length);
+                    const newCurrentPost = newPath + suffix;
+                    setCurrentPost(newCurrentPost);
+                    router.replace({ query: { ...router.query, open: newCurrentPost } }, undefined, { shallow: true });
+                    setTimeout(() => loadPost(newCurrentPost), 100);
                 }
 
             } else if (action === 'delete') {

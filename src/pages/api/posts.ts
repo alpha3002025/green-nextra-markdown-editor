@@ -35,8 +35,21 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
                 const metaPath = path.join(dir, '_meta.json')
                 if (fs.existsSync(metaPath)) {
                     const metaContent = fs.readFileSync(metaPath, 'utf8')
-                    const meta = JSON.parse(metaContent)
-                    metaKeys = Object.keys(meta)
+                    // Manually extract keys from file content to preserve order (avoid V8 integer sorting)
+                    // Heuristic: Top-level keys are indented by 2 spaces: '  "key":'
+                    const regex = /^ {2}"((?:\\.|[^"\\])*)"\s*:/gm
+                    let match
+                    while ((match = regex.exec(metaContent)) !== null) {
+                        metaKeys.push(match[1])
+                    }
+
+                    // Fallback: If no keys found via regex (maybe formatted differently), use JSON.parse
+                    if (metaKeys.length === 0) {
+                        try {
+                            const meta = JSON.parse(metaContent)
+                            metaKeys = Object.keys(meta)
+                        } catch (e) { }
+                    }
                 }
             } catch (e) {
                 // ignore error

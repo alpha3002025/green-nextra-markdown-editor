@@ -66,40 +66,67 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
             return res.status(400).json({ error: 'Invalid path' })
         }
 
-        // Determine directory for _meta.json
         let metaDir = fullPath
         if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
             metaDir = path.dirname(fullPath)
         } else if (!fs.existsSync(fullPath)) {
-            // If path doesn't exist (e.g. might be a new file or just a slug reference), 
-            // assume it's relative to PAGES_DIR and we want the meta in the parent dir of that item?
-            // Actually, let's rely on the client sending a valid path corresponding to the file/folder being renamed.
-            // If it's a file "foo.md", we want _meta.json in same dir.
             metaDir = path.dirname(fullPath)
         }
-
-        // If targetPath is empty string (root), metaDir = PAGES_DIR
-        if (targetPath === '') {
-            metaDir = PAGES_DIR
-        }
-
+        if (targetPath === '') metaDir = PAGES_DIR
 
         const metaFilePath = path.join(metaDir, '_meta.json')
 
+        // Read existing meta
         let metaContent: any = {}
+        let orderedKeys: string[] = []
+
         if (fs.existsSync(metaFilePath)) {
             try {
-                metaContent = JSON.parse(fs.readFileSync(metaFilePath, 'utf-8'))
+                const raw = fs.readFileSync(metaFilePath, 'utf-8')
+                metaContent = JSON.parse(raw)
+
+                // Extract keys in order
+                const regex = /^ {2}"((?:\\.|[^"\\])*)"\s*:/gm
+                let match
+                while ((match = regex.exec(raw)) !== null) {
+                    orderedKeys.push(match[1])
+                }
+
+                // Fallback if regex failed
+                if (orderedKeys.length === 0 && Object.keys(metaContent).length > 0) {
+                    orderedKeys = Object.keys(metaContent)
+                }
+                // Ensure all keys in content are in orderedKeys
+                Object.keys(metaContent).forEach(k => {
+                    if (!orderedKeys.includes(k)) orderedKeys.push(k)
+                })
+
             } catch (e) {
                 console.error('Error reading existing _meta.json', e)
-                // Proceed with empty object if corrupt or empty
             }
         }
 
         metaContent[key] = title
+        if (!orderedKeys.includes(key)) {
+            orderedKeys.push(key)
+        }
+
+        // Write
+        const jsonParts: string[] = ['{'];
+        orderedKeys.forEach((k, index) => {
+            const val = metaContent[k];
+            if (val === undefined) return;
+            let valStr = JSON.stringify(val, null, 2);
+            if (valStr.includes('\n')) {
+                valStr = valStr.split('\n').map((line, i) => i === 0 ? line : `  ${line}`).join('\n');
+            }
+            const isLast = index === orderedKeys.length - 1;
+            jsonParts.push(`  "${k}": ${valStr}${isLast ? '' : ','}`);
+        });
+        jsonParts.push('}');
 
         try {
-            fs.writeFileSync(metaFilePath, JSON.stringify(metaContent, null, 2))
+            fs.writeFileSync(metaFilePath, jsonParts.join('\n'))
             return res.status(200).json({ success: true, meta: metaContent })
         } catch (e) {
             return res.status(500).json({ error: 'Failed to write _meta.json' })
@@ -119,34 +146,63 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         }
 
         const metaFilePath = path.join(fullDir, '_meta.json')
-
-        let metaContent: any = {}
-        if (fs.existsSync(metaFilePath)) {
-            try {
-                metaContent = JSON.parse(fs.readFileSync(metaFilePath, 'utf-8'))
-            } catch (e) {
-                console.error('Error reading existing _meta.json', e)
-                return res.status(500).json({ error: 'Corrupt _meta.json' })
-            }
-        } else {
+        if (!fs.existsSync(metaFilePath)) {
             return res.status(404).json({ error: '_meta.json not found' })
         }
 
-        if (metaContent[oldKey]) {
-            metaContent[newKey] = metaContent[oldKey]
-            delete metaContent[oldKey]
+        let metaContent: any = {}
+        let orderedKeys: string[] = []
 
-            try {
-                fs.writeFileSync(metaFilePath, JSON.stringify(metaContent, null, 2))
-                return res.status(200).json({ success: true, meta: metaContent })
-            } catch (e) {
-                return res.status(500).json({ error: 'Failed to write _meta.json' })
+        try {
+            const raw = fs.readFileSync(metaFilePath, 'utf-8')
+            metaContent = JSON.parse(raw)
+            // Extract keys in order
+            const regex = /^ {2}"((?:\\.|[^"\\])*)"\s*:/gm
+            let match
+            while ((match = regex.exec(raw)) !== null) {
+                orderedKeys.push(match[1])
             }
-        } else {
-            // If old key doesn't exist, maybe just add the new key with default title?
-            // Or just ignore. For rename, if it wasn't in meta, maybe we don't need to do anything?
-            // But let's return success to not block UI.
-            return res.status(200).json({ success: true, message: 'Key not found in meta' })
+            if (orderedKeys.length === 0 && Object.keys(metaContent).length > 0) {
+                orderedKeys = Object.keys(metaContent)
+            }
+            Object.keys(metaContent).forEach(k => {
+                if (!orderedKeys.includes(k)) orderedKeys.push(k)
+            })
+
+            if (metaContent[oldKey]) {
+                metaContent[newKey] = metaContent[oldKey]
+                delete metaContent[oldKey]
+
+                // Rename in place
+                const idx = orderedKeys.indexOf(oldKey)
+                if (idx !== -1) {
+                    orderedKeys[idx] = newKey
+                } else {
+                    orderedKeys.push(newKey)
+                }
+
+                // Write
+                const jsonParts: string[] = ['{'];
+                orderedKeys.forEach((k, index) => {
+                    const val = metaContent[k];
+                    if (val === undefined) return;
+                    let valStr = JSON.stringify(val, null, 2);
+                    if (valStr.includes('\n')) {
+                        valStr = valStr.split('\n').map((line, i) => i === 0 ? line : `  ${line}`).join('\n');
+                    }
+                    const isLast = index === orderedKeys.length - 1;
+                    jsonParts.push(`  "${k}": ${valStr}${isLast ? '' : ','}`);
+                });
+                jsonParts.push('}');
+
+                fs.writeFileSync(metaFilePath, jsonParts.join('\n'))
+                return res.status(200).json({ success: true, meta: metaContent })
+            } else {
+                return res.status(200).json({ success: true, message: 'Key not found in meta' })
+            }
+        } catch (e) {
+            console.error('Error', e)
+            return res.status(500).json({ error: 'Failed to write _meta.json' })
         }
     }
 
@@ -171,16 +227,49 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         }
 
         let metaContent: any = {}
+        let orderedKeys: string[] = []
+
         try {
-            metaContent = JSON.parse(fs.readFileSync(metaFilePath, 'utf-8'))
+            const raw = fs.readFileSync(metaFilePath, 'utf-8')
+            metaContent = JSON.parse(raw)
+
+            // Extract keys in order
+            const regex = /^ {2}"((?:\\.|[^"\\])*)"\s*:/gm
+            let match
+            while ((match = regex.exec(raw)) !== null) {
+                orderedKeys.push(match[1])
+            }
+            if (orderedKeys.length === 0 && Object.keys(metaContent).length > 0) {
+                orderedKeys = Object.keys(metaContent)
+            }
+            Object.keys(metaContent).forEach(k => {
+                if (!orderedKeys.includes(k)) orderedKeys.push(k)
+            })
+
         } catch (e) {
             return res.status(500).json({ error: 'Corrupt _meta.json' })
         }
 
         if (metaContent[key]) {
             delete metaContent[key]
+            orderedKeys = orderedKeys.filter(k => k !== key)
+
+            // Write
+            const jsonParts: string[] = ['{'];
+            orderedKeys.forEach((k, index) => {
+                const val = metaContent[k];
+                if (val === undefined) return;
+                let valStr = JSON.stringify(val, null, 2);
+                if (valStr.includes('\n')) {
+                    valStr = valStr.split('\n').map((line, i) => i === 0 ? line : `  ${line}`).join('\n');
+                }
+                const isLast = index === orderedKeys.length - 1;
+                jsonParts.push(`  "${k}": ${valStr}${isLast ? '' : ','}`);
+            });
+            jsonParts.push('}');
+
             try {
-                fs.writeFileSync(metaFilePath, JSON.stringify(metaContent, null, 2))
+                fs.writeFileSync(metaFilePath, jsonParts.join('\n'))
                 return res.status(200).json({ success: true, meta: metaContent })
             } catch (e) {
                 return res.status(500).json({ error: 'Failed to write _meta.json' })
@@ -216,10 +305,9 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
             return res.status(500).json({ error: 'Corrupt _meta.json' })
         }
 
-        // Create new object with ordered keys
+        // Create new object with ordered keys for reference/return
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const newMeta: any = {}
-        // Add keys in specified order
         order.forEach((key: string) => {
             if (metaContent[key] !== undefined) {
                 newMeta[key] = metaContent[key]
@@ -227,15 +315,39 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
                 newMeta[key] = key
             }
         })
-        // Append any keys that were in original but not in order array (just in case)
+        // Append remaining keys to newMeta object as well
         Object.keys(metaContent).forEach(key => {
             if (newMeta[key] === undefined) {
                 newMeta[key] = metaContent[key]
             }
         })
 
+        // Helper to manually stringify with order preservation
+        const orderedKeys = [...order];
+        Object.keys(metaContent).forEach(key => {
+            if (!orderedKeys.includes(key)) {
+                orderedKeys.push(key);
+            }
+        });
+
+        const jsonParts: string[] = ['{'];
+        orderedKeys.forEach((key, index) => {
+            const val = newMeta[key];
+            if (val === undefined) return;
+
+            let valStr = JSON.stringify(val, null, 2);
+            // If the value spans multiple lines (object/array), indent it correctly
+            if (valStr.includes('\n')) {
+                valStr = valStr.split('\n').map((line, i) => i === 0 ? line : `  ${line}`).join('\n');
+            }
+
+            const isLast = index === orderedKeys.length - 1;
+            jsonParts.push(`  "${key}": ${valStr}${isLast ? '' : ','}`);
+        });
+        jsonParts.push('}');
+
         try {
-            fs.writeFileSync(metaFilePath, JSON.stringify(newMeta, null, 2))
+            fs.writeFileSync(metaFilePath, jsonParts.join('\n'))
             return res.status(200).json({ success: true, meta: newMeta })
         } catch (_e) {
             return res.status(500).json({ error: 'Failed to write _meta.json' })

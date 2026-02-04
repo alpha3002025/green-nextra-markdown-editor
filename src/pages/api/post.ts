@@ -11,6 +11,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     const { slug } = req.query
+    console.log('API POST DEBUG:', { cwd: process.cwd(), PAGES_DIR, slug });
     if (!slug || Array.isArray(slug)) return res.status(400).json({ error: 'Invalid slug' })
 
     let dir: string
