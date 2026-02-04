@@ -1,7 +1,11 @@
 import React from 'react'
 import { DocsThemeConfig } from 'nextra-theme-docs'
+import { ThemeSelector } from '@/components/ThemeSelector'
 
 const config: DocsThemeConfig = {
+    navbar: {
+        extraContent: <ThemeSelector />
+    },
     // (1)
     logo: <span style={{ fontWeight: 800 }}>Vue-like Docs</span>,
     project: {

@@ -43,20 +43,20 @@
 }
 
 .enhanced-code-line:hover {
-  background-color: rgba(66, 184, 131, 0.1);
-  border-left-color: #42b883;
+  background-color: var(--color-primary-transparent);
+  border-left-color: var(--color-primary);
 }
 
 .enhanced-code-line.active {
-  background-color: rgba(66, 184, 131, 0.2);
-  border-left-color: #33a06f;
+  background-color: var(--color-primary-transparent-active);
+  border-left-color: var(--color-primary-dark);
 }
 
 /* Global Markdown Styles (Preview & Viewer) */
 blockquote {
-  border-left: 4px solid #42b883;
-  background-color: #f0f8f5;
-  color: #666;
+  border-left: 4px solid var(--color-primary);
+  background-color: var(--color-primary-bg);
+  color: var(--color-text-secondary);
   font-style: italic;
   margin: 1.5em 0;
   padding: 0.5em 1em;
@@ -68,9 +68,9 @@ blockquote {
 .nx-prose blockquote,
 .prose blockquote,
 .nextra-content blockquote {
-  border-left-color: #42b883 !important;
-  background-color: #f0f8f5 !important;
-  color: #666 !important;
+  border-left-color: var(--color-primary) !important;
+  background-color: var(--color-primary-bg) !important;
+  color: var(--color-text-secondary) !important;
   padding: 0.5em 1em !important;
   font-style: italic !important;
   quotes: none !important;
@@ -83,8 +83,8 @@ blockquote {
 .prose :not(pre)>code:not([class*="language-"]),
 .nextra-content :not(pre)>code:not([class*="language-"]),
 code:not(pre code):not([class*="language-"]) {
-  color: #42b883 !important;
-  background-color: rgba(66, 184, 131, 0.1) !important;
+  color: var(--color-primary) !important;
+  background-color: var(--color-primary-transparent) !important;
   border-radius: 4px;
   padding: 0.2rem 0.4rem;
   font-weight: 600;

@@ -1,0 +1,144 @@
+:root {
+    /* Default: Green (Vue) - Fallback if no class present */
+    --color-primary: #42b883;
+    --color-primary-dark: #33a06f;
+    --color-primary-light: #e0f8ed;
+    --color-primary-bg: #f0f8f5;
+    --color-primary-transparent: rgba(66, 184, 131, 0.1);
+    --color-primary-transparent-active: rgba(66, 184, 131, 0.2);
+    /* Nextra Default */
+    --nextra-primary-hue: 153deg;
+    --nextra-primary-saturation: 47%;
+
+    /* Neutral Colors */
+    --color-bg-main: #f8f9fa;
+    --color-bg-sidebar: #ffffff;
+    --color-border: #e9ecef;
+    --color-border-light: #f0f0f0;
+
+    /* Text Colors */
+    --color-text-main: #333333;
+    --color-text-secondary: #555555;
+    --color-text-tertiary: #888888;
+    --color-text-inverted: #ffffff;
+
+    /* Status Colors */
+    --color-danger: #e53e3e;
+    --color-danger-hover: #c53030;
+    --color-warning: #eab308;
+}
+
+/* Theme Presets */
+
+/* Green (Default) */
+.theme-green {
+    --color-primary: #42b883;
+    --color-primary-dark: #33a06f;
+    --color-primary-light: #e0f8ed;
+    --color-primary-bg: #f0f8f5;
+    --color-primary-transparent: rgba(66, 184, 131, 0.1);
+    --color-primary-transparent-active: rgba(66, 184, 131, 0.2);
+    --nextra-primary-hue: 153deg;
+    --nextra-primary-saturation: 47%;
+}
+
+/* Blue */
+.theme-blue {
+    --color-primary: #3b82f6;
+    --color-primary-dark: #2563eb;
+    --color-primary-light: #eff6ff;
+    --color-primary-bg: #dbeafe;
+    --color-primary-transparent: rgba(59, 130, 246, 0.1);
+    --color-primary-transparent-active: rgba(59, 130, 246, 0.2);
+    --nextra-primary-hue: 217deg;
+    --nextra-primary-saturation: 91%;
+}
+
+/* Sky */
+.theme-sky {
+    --color-primary: #0ea5e9;
+    --color-primary-dark: #0284c7;
+    --color-primary-light: #f0f9ff;
+    --color-primary-bg: #e0f2fe;
+    --color-primary-transparent: rgba(14, 165, 233, 0.1);
+    --color-primary-transparent-active: rgba(14, 165, 233, 0.2);
+    --nextra-primary-hue: 199deg;
+    --nextra-primary-saturation: 89%;
+}
+
+/* Purple */
+.theme-purple {
+    --color-primary: #8b5cf6;
+    --color-primary-dark: #7c3aed;
+    --color-primary-light: #f3e8ff;
+    --color-primary-bg: #ede9fe;
+    --color-primary-transparent: rgba(139, 92, 246, 0.1);
+    --color-primary-transparent-active: rgba(139, 92, 246, 0.2);
+    --nextra-primary-hue: 258deg;
+    --nextra-primary-saturation: 90%;
+}
+
+/* Orange */
+.theme-orange {
+    --color-primary: #f97316;
+    --color-primary-dark: #ea580c;
+    --color-primary-light: #fff7ed;
+    --color-primary-bg: #ffedd5;
+    --color-primary-transparent: rgba(249, 115, 22, 0.1);
+    --color-primary-transparent-active: rgba(249, 115, 22, 0.2);
+    --nextra-primary-hue: 24deg;
+    --nextra-primary-saturation: 96%;
+}
+
+/* Yellow */
+.theme-yellow {
+    --color-primary: #eab308;
+    --color-primary-dark: #ca8a04;
+    --color-primary-light: #fefce8;
+    --color-primary-bg: #fef9c3;
+    --color-primary-transparent: rgba(234, 179, 8, 0.1);
+    --color-primary-transparent-active: rgba(234, 179, 8, 0.2);
+    --nextra-primary-hue: 45deg;
+    --nextra-primary-saturation: 93%;
+}
+
+/* Black (Monochrome) */
+.theme-black {
+    --color-primary: #18181b;
+    --color-primary-dark: #000000;
+    --color-primary-light: #f4f4f5;
+    --color-primary-bg: #e4e4e7;
+    --color-primary-transparent: rgba(24, 24, 27, 0.1);
+    --color-primary-transparent-active: rgba(24, 24, 27, 0.2);
+    --nextra-primary-hue: 240deg;
+    --nextra-primary-saturation: 5%;
+}
+
+/* Red */
+.theme-red {
+    --color-primary: #ef4444;
+    --color-primary-dark: #dc2626;
+    --color-primary-light: #fef2f2;
+    --color-primary-bg: #fee2e2;
+    --color-primary-transparent: rgba(239, 68, 68, 0.1);
+    --color-primary-transparent-active: rgba(239, 68, 68, 0.2);
+    --nextra-primary-hue: 0deg;
+    --nextra-primary-saturation: 84%;
+}
+
+
+/* Dark Mode Overrides */
+.dark {
+    --color-bg-main: #111111;
+    --color-bg-sidebar: #1a1a1a;
+    --color-border: #333333;
+    --color-border-light: #2a2a2a;
+
+    --color-text-main: #e0e0e0;
+    --color-text-secondary: #aaaaaa;
+    --color-text-tertiary: #666666;
+    --color-text-inverted: #121212;
+
+    --color-primary-light: rgba(255, 255, 255, 0.05);
+    --color-primary-bg: rgba(255, 255, 255, 0.03);
+}

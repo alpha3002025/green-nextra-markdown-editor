@@ -3,16 +3,16 @@
     height: 100vh;
     width: 100vw;
     overflow: hidden;
-    background-color: #f8f9fa;
+    background-color: var(--color-bg-main);
     /* font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; */
-    color: #333;
+    color: var(--color-text-main);
 }
 
 /* Sidebar */
 .sidebar {
     width: 260px;
-    background-color: #fff;
-    border-right: 1px solid #e9ecef;
+    background-color: var(--color-bg-sidebar);
+    border-right: 1px solid var(--color-border);
     display: flex;
     flex-direction: column;
     transition: margin-left 0.3s ease;
@@ -27,8 +27,8 @@
     padding: 1rem;
     font-weight: bold;
     font-size: 1.25rem;
-    color: #42b883;
-    border-bottom: 1px solid #f0f0f0;
+    color: var(--color-primary);
+    border-bottom: 1px solid var(--color-border-light);
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -36,7 +36,7 @@
 
 .newPostForm {
     padding: 1rem;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--color-border-light);
 }
 
 .inputGroup {
@@ -47,18 +47,18 @@
 .input {
     flex: 1;
     padding: 0.4rem 0.6rem;
-    border: 1px solid #ddd;
+    border: 1px solid var(--color-border);
     border-radius: 4px;
     font-size: 0.9rem;
 }
 
 .input:focus {
     outline: none;
-    border-color: #42b883;
+    border-color: var(--color-primary);
 }
 
 .btnPrimary {
-    background-color: #42b883;
+    background-color: var(--color-primary);
     color: white;
     border: none;
     border-radius: 4px;
@@ -71,7 +71,7 @@
 }
 
 .btnPrimary:hover {
-    background-color: #33a06f;
+    background-color: var(--color-primary-dark);
 }
 
 .postList {
@@ -86,20 +86,20 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    color: #555;
+    color: var(--color-text-secondary);
     transition: background-color 0.2s;
 }
 
 .postItem:hover {
-    background-color: #f0f8f5;
-    color: #42b883;
+    background-color: var(--color-primary-bg);
+    color: var(--color-primary);
 }
 
 .postItem.active {
-    background-color: #e0f8ed;
-    color: #42b883;
+    background-color: var(--color-primary-light);
+    color: var(--color-primary);
     font-weight: 500;
-    border-right: 3px solid #42b883;
+    border-right: 3px solid var(--color-primary);
 }
 
 /* Main Area */
@@ -112,8 +112,8 @@
 
 .topBar {
     height: 50px;
-    background-color: #fff;
-    border-bottom: 1px solid #e9ecef;
+    background-color: var(--color-bg-sidebar);
+    border-bottom: 1px solid var(--color-border);
     display: flex;
     align-items: center;
     padding: 0 1rem;
@@ -136,19 +136,19 @@
 }
 
 .toggleBtn:hover {
-    background-color: #f0f0f0;
-    color: #333;
+    background-color: var(--color-border-light);
+    color: var(--color-text-main);
 }
 
 .currentTitle {
     font-weight: 600;
     font-size: 1rem;
-    color: #333;
+    color: var(--color-text-main);
 }
 
 .status {
     font-size: 0.8rem;
-    color: #888;
+    color: var(--color-text-tertiary);
 }
 
 .topBarRight {
@@ -161,7 +161,7 @@
     background: none;
     border: none;
     cursor: pointer;
-    color: #555;
+    color: var(--color-text-secondary);
     font-size: 0.9rem;
     display: flex;
     align-items: center;
@@ -172,12 +172,12 @@
 }
 
 .actionBtn:hover {
-    background-color: #f0f0f0;
-    color: #42b883;
+    background-color: var(--color-border-light);
+    color: var(--color-primary);
 }
 
 .saveBtn {
-    background-color: #42b883;
+    background-color: var(--color-primary);
     color: white;
     padding: 0.4rem 1rem;
     border-radius: 4px;
@@ -187,12 +187,12 @@
 }
 
 .saveBtn:hover {
-    background-color: #33a06f;
+    background-color: var(--color-primary-dark);
 }
 
 .cancelBtn {
-    background-color: white;
-    color: #666;
+    background-color: var(--color-bg-sidebar);
+    color: var(--color-text-secondary);
     padding: 0.4rem 1rem;
     border-radius: 4px;
     border: 1px solid #e0e0e0;
@@ -205,16 +205,16 @@
 }
 
 .cancelBtn:hover {
-    background-color: #f8f9fa;
-    color: #333;
+    background-color: var(--color-bg-main);
+    color: var(--color-text-main);
     border-color: #ccc;
 }
 
 /* Toolbar */
 .toolbar {
     height: 40px;
-    background-color: #fafafa;
-    border-bottom: 1px solid #e9ecef;
+    background-color: var(--color-bg-main);
+    border-bottom: 1px solid var(--color-border);
     display: flex;
     align-items: center;
     padding: 0 0.5rem;
@@ -226,7 +226,7 @@
     background: none;
     border: none;
     cursor: pointer;
-    color: #666;
+    color: var(--color-text-secondary);
     width: 32px;
     height: 32px;
     border-radius: 4px;
@@ -236,8 +236,8 @@
 }
 
 .toolBtn:hover {
-    background-color: #e9ecef;
-    color: #333;
+    background-color: var(--color-border);
+    color: var(--color-text-main);
 }
 
 .toolSeparator {
@@ -264,9 +264,9 @@
 
 .paneResizer {
     width: 8px;
-    background-color: #fafafa;
-    border-left: 1px solid #e9ecef;
-    border-right: 1px solid #e9ecef;
+    background-color: var(--color-bg-main);
+    border-left: 1px solid var(--color-border);
+    border-right: 1px solid var(--color-border);
     cursor: col-resize;
     flex-shrink: 0;
     transition: background-color 0.2s;
@@ -275,11 +275,11 @@
 
 .paneResizer:hover,
 .paneResizer:active {
-    background-color: #42b883;
+    background-color: var(--color-primary);
 }
 
 .editorPane {
-    border-right: 1px solid #e9ecef;
+    border-right: 1px solid var(--color-border);
 }
 
 .textarea {
@@ -291,12 +291,12 @@
     font-size: 14px;
     line-height: 1.6;
     outline: none;
-    color: #24292e;
-    background-color: #fff;
+    color: var(--color-text-main);
+    background-color: var(--color-bg-sidebar);
 }
 
 .previewPane {
-    background-color: #fff;
+    background-color: var(--color-bg-sidebar);
 }
 
 .previewContent {
@@ -305,7 +305,7 @@
     overflow-y: auto;
     font-size: 16px;
     line-height: 1.7;
-    color: #333;
+    color: var(--color-text-main);
     overscroll-behavior-y: none;
 }
 
@@ -460,7 +460,7 @@
     bottom: 2rem;
     left: 50%;
     transform: translateX(-50%);
-    background-color: #42b883;
+    background-color: var(--color-primary);
     color: white;
     padding: 0.5rem 1rem;
     border-radius: 4px;
@@ -499,8 +499,8 @@
 .tocSidebar {
     width: 250px;
     /* Default width, will be overridden by inline style */
-    background-color: #fff;
-    border-left: 1px solid #e9ecef;
+    background-color: var(--color-bg-sidebar);
+    border-left: 1px solid var(--color-border);
     display: flex;
     flex-direction: column;
     overflow-y: auto;
@@ -525,15 +525,15 @@
 
 .resizer:hover,
 .resizer:active {
-    background-color: #42b883;
+    background-color: var(--color-primary);
     /* Green highlight on hover/active */
 }
 
 .tocHeader {
     padding: 1rem;
     font-weight: 600;
-    color: #42b883;
-    border-bottom: 1px solid #f0f0f0;
+    color: var(--color-primary);
+    border-bottom: 1px solid var(--color-border-light);
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -548,7 +548,7 @@
 .tocItem {
     padding: 0.4rem 1rem;
     cursor: pointer;
-    color: #555;
+    color: var(--color-text-secondary);
     transition: all 0.2s;
     text-decoration: none;
     display: block;
@@ -558,8 +558,8 @@
 }
 
 .tocItem:hover {
-    color: #42b883;
-    background-color: #f0f8f5;
+    color: var(--color-primary);
+    background-color: var(--color-primary-bg);
 }
 
 .tocItem.h1 {
@@ -594,13 +594,13 @@
 .viewModeSelect {
     padding: 0 2rem 0 0.8rem;
     line-height: 30px;
-    border: 1px solid #42b883;
+    border: 1px solid var(--color-primary);
     /* Default to green to show 'active' selection */
     border-radius: 4px;
-    background-color: #f0f8f5;
+    background-color: var(--color-primary-bg);
     /* Light green background for active feel */
     font-size: 0.9rem;
-    color: #42b883;
+    color: var(--color-primary);
     /* Default to green text */
     cursor: pointer;
     appearance: none;
@@ -617,10 +617,10 @@
 
 .viewModeSelect:hover,
 .viewModeSelect:focus {
-    background-color: #e0f8ed;
+    background-color: var(--color-primary-light);
     /* Slightly darker background on hover */
-    border-color: #33a06f;
-    color: #33a06f;
+    border-color: var(--color-primary-dark);
+    color: var(--color-primary-dark);
 }
 
 /* Live Mode Styles */
@@ -629,7 +629,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background-color: #fff;
+    background-color: var(--color-bg-sidebar);
 }
 
 .liveEditorContainer {
@@ -664,7 +664,7 @@
 .liveEditor :global(.token.title.h1) {
     /* font-size must match editor font size to prevent alignment issues */
     font-weight: 800 !important;
-    color: #42b883 !important;
+    color: var(--color-primary) !important;
     /* geometric styles removed */
 }
 
@@ -675,7 +675,7 @@
 
 .liveEditor :global(.token.title.h2) {
     font-weight: 700 !important;
-    color: #42b883 !important;
+    color: var(--color-primary) !important;
 }
 
 .liveEditor :global(.token.title.h2 *) {
@@ -684,7 +684,7 @@
 
 .liveEditor :global(.token.title.h3) {
     font-weight: 600 !important;
-    color: #42b883 !important;
+    color: var(--color-primary) !important;
 }
 
 .liveEditor :global(.token.title.h3 *) {
@@ -693,7 +693,7 @@
 
 .liveEditor :global(.token.title.h4) {
     font-weight: 600 !important;
-    color: #42b883 !important;
+    color: var(--color-primary) !important;
 }
 
 .liveEditor :global(.token.title.h4 *) {
@@ -702,7 +702,7 @@
 
 .liveEditor :global(.token.title.h5) {
     font-weight: 600 !important;
-    color: #42b883 !important;
+    color: var(--color-primary) !important;
 }
 
 .liveEditor :global(.token.title.h5 *) {
@@ -711,7 +711,7 @@
 
 .liveEditor :global(.token.title.h6) {
     font-weight: 600 !important;
-    color: #42b883 !important;
+    color: var(--color-primary) !important;
 }
 
 .liveEditor :global(.token.title.h6 *) {
@@ -729,20 +729,20 @@
 
 .liveEditor :global(.token.code) {
     font-family: "Fira Code", monospace;
-    color: #42b883;
+    color: var(--color-primary);
     /* Vue Green */
-    background-color: rgba(66, 184, 131, 0.1);
+    background-color: var(--color-primary-transparent);
     border-radius: 4px;
     /* padding: 0.1rem 0.3rem; -> REMOVED to prevent horizontal cursor drift */
 }
 
 .liveEditor :global(.token.url) {
-    color: #42b883;
+    color: var(--color-primary);
     text-decoration: underline;
 }
 
 .liveEditor :global(.token.list) {
-    color: #42b883;
+    color: var(--color-primary);
     font-weight: bold;
 }
 
@@ -754,8 +754,8 @@
 
 .contextMenu {
     position: fixed;
-    background-color: white;
-    border: 1px solid #ddd;
+    background-color: var(--color-bg-sidebar);
+    border: 1px solid var(--color-border);
     border-radius: 6px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     z-index: 1000;
@@ -783,25 +783,25 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    color: #333;
+    color: var(--color-text-main);
     transition: background-color 0.1s;
 }
 
 .contextMenuItem:hover {
-    background-color: #f0f8f5;
-    color: #42b883;
+    background-color: var(--color-primary-bg);
+    color: var(--color-primary);
 }
 
 .contextMenuDivider {
-    border-top: 1px solid #eee;
+    border-top: 1px solid var(--color-border-light);
     margin: 4px 0;
 }
 
 .contextMenuHeader {
     padding: 8px 12px;
     font-size: 0.85rem;
-    color: #888;
-    border-bottom: 1px solid #eee;
+    color: var(--color-text-tertiary);
+    border-bottom: 1px solid var(--color-border-light);
     margin-bottom: 4px;
     font-weight: 500;
     display: flex;
@@ -819,13 +819,13 @@
 }
 
 .codeLine:hover {
-    background-color: rgba(66, 184, 131, 0.15);
-    border-left-color: #42b883;
+    background-color: var(--color-primary-transparent);
+    border-left-color: var(--color-primary);
 }
 
 .codeLineClicked {
-    background-color: rgba(66, 184, 131, 0.25);
-    border-left-color: #33a06f;
+    background-color: var(--color-primary-transparent-active);
+    border-left-color: var(--color-primary-dark);
 }
 
 /* List Styles within Preview */
@@ -871,20 +871,21 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(255, 255, 255, 0.8);
+    background-color: var(--color-bg-sidebar);
+    opacity: 0.9;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     z-index: 2000;
-    color: #42b883;
+    color: var(--color-primary);
 }
 
 .spinner {
     width: 50px;
     height: 50px;
-    border: 4px solid #e0f8ed;
-    border-top: 4px solid #42b883;
+    border: 4px solid var(--color-primary-light);
+    border-top: 4px solid var(--color-primary);
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin-bottom: 1rem;
@@ -903,7 +904,7 @@
 .loadingText {
     font-size: 1.2rem;
     font-weight: 500;
-    color: #333;
+    color: var(--color-text-main);
     animation: pulse 1.5s ease-in-out infinite;
 }
 
@@ -938,14 +939,14 @@
 }
 
 .modal {
-    background-color: white;
+    background-color: var(--color-bg-sidebar);
     border-radius: 8px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
     width: 90%;
     max-width: 400px;
     overflow: hidden;
     animation: scaleIn 0.2s ease-out;
-    border: 1px solid rgba(66, 184, 131, 0.1);
+    border: 1px solid var(--color-primary-transparent);
     /* Subtle green border */
 }
 
@@ -963,11 +964,11 @@
 
 .modalHeader {
     padding: 1rem 1.5rem;
-    background-color: #fafafa;
-    border-bottom: 1px solid #eee;
+    background-color: var(--color-bg-main);
+    border-bottom: 1px solid var(--color-border-light);
     font-size: 1.1rem;
     font-weight: 600;
-    color: #333;
+    color: var(--color-text-main);
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -982,7 +983,7 @@
 
 .modalLabel {
     font-size: 0.9rem;
-    color: #666;
+    color: var(--color-text-secondary);
     margin-bottom: 0.2rem;
     display: block;
 }
@@ -990,7 +991,7 @@
 .modalInput {
     width: 100%;
     padding: 0.6rem 0.8rem;
-    border: 1px solid #ddd;
+    border: 1px solid var(--color-border);
     border-radius: 6px;
     font-size: 1rem;
     transition: all 0.2s;
@@ -999,14 +1000,14 @@
 }
 
 .modalInput:focus {
-    border-color: #42b883;
-    box-shadow: 0 0 0 3px rgba(66, 184, 131, 0.1);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-transparent);
 }
 
 .modalFooter {
     padding: 1rem 1.5rem;
-    background-color: #fafafa;
-    border-top: 1px solid #eee;
+    background-color: var(--color-bg-main);
+    border-top: 1px solid var(--color-border-light);
     display: flex;
     justify-content: flex-end;
     gap: 0.8rem;
@@ -1026,34 +1027,34 @@
 }
 
 .modalBtnSecondary {
-    background-color: white;
-    border: 1px solid #ddd;
-    color: #666;
+    background-color: var(--color-bg-sidebar);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
 }
 
 .modalBtnSecondary:hover {
-    background-color: #f5f5f5;
-    color: #333;
+    background-color: var(--color-bg-main);
+    color: var(--color-text-main);
     border-color: #ccc;
 }
 
 .modalBtnPrimary {
-    background-color: #42b883;
+    background-color: var(--color-primary);
     color: white;
 }
 
 .modalBtnPrimary:hover {
-    background-color: #3aa072;
+    background-color: var(--color-primary-dark);
     box-shadow: 0 2px 5px rgba(66, 184, 131, 0.3);
 }
 
 .modalBtnDanger {
-    background-color: #e53e3e;
+    background-color: var(--color-danger);
     color: white;
 }
 
 .modalBtnDanger:hover {
-    background-color: #c53030;
+    background-color: var(--color-danger-hover);
     box-shadow: 0 2px 5px rgba(229, 62, 62, 0.3);
 }
 

@@ -12,6 +12,7 @@ cp -a upstream/package.json package.json
 cp -a upstream/package-lock.json package-lock.json 
 cp -a upstream/next.config.js next.config.js
 cp -a upstream/eslint.config.mjs eslint.config.mjs
+cp -a upstream/theme.config.tsx theme.config.tsx
 
 
 ## Copy files from upstream (scripts)
