@@ -913,12 +913,16 @@ export default function Editor() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ folderPath: oldParent || '/', key })
             });
+            const oldMeta = oldParent ? `${oldParent}/_meta.json` : '_meta.json';
+            if (currentPost === oldMeta || currentPost === `/${oldMeta}`) setTimeout(() => loadPost(oldMeta), 300);
 
             await fetch('/api/meta', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path: parentPath, key, title: key })
             });
+            const newMeta = parentPath ? `${parentPath}/_meta.json` : '_meta.json';
+            if (currentPost === newMeta || currentPost === `/${newMeta}`) setTimeout(() => loadPost(newMeta), 300);
 
             window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Moved successfully' }));
             await fetchPosts();
@@ -967,6 +971,10 @@ export default function Editor() {
                 body: JSON.stringify({ folderPath: parentPath || '/', order: keys })
             });
             if (!res.ok) throw new Error('Reorder failed');
+
+            const metaPath = parentPath ? `${parentPath}/_meta.json` : '_meta.json';
+            if (currentPost === metaPath || currentPost === `/${metaPath}`) setTimeout(() => loadPost(metaPath), 300);
+
             await fetchPosts();
         } catch (e: any) {
             console.error(e);
