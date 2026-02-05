@@ -180,6 +180,29 @@ const CodeMirrorEditor = forwardRef<ReactCodeMirrorRef, CodeMirrorEditorProps>((
         { key: "Alt-ArrowDown", run: moveLineDown },
         { key: "Shift-Alt-ArrowUp", run: copyLineUp },
         { key: "Shift-Alt-ArrowDown", run: copyLineDown },
+        // Case Toggle (Mod-Shift-U)
+        {
+            key: "Mod-Shift-u",
+            run: (view) => {
+                const range = view.state.selection.main;
+                if (range.empty) return false;
+
+                const from = range.from;
+                const to = range.to;
+                const text = view.state.sliceDoc(from, to);
+                if (!text) return false;
+
+                const isAllUpper = text === text.toUpperCase();
+                const newText = isAllUpper ? text.toLowerCase() : text.toUpperCase();
+
+                view.dispatch({
+                    changes: { from, to, insert: newText },
+                    selection: { anchor: from, head: from + newText.length }
+                });
+                return true;
+            },
+            preventDefault: true
+        },
     ]), []);
 
     const extensions = useMemo(() => [
