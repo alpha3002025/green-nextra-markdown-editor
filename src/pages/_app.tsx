@@ -268,6 +268,82 @@ function CodeBlockEnhancer() {
   return null;
 }
 
+function CopyTokenEnhancer() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const enhance = () => {
+      // Target inline code elements
+      document.querySelectorAll('code').forEach((code) => {
+        // Skip if inside pre (Code Block)
+        if (code.closest('pre')) return;
+        // Skip if already processed
+        if (code.getAttribute('data-inline-copy')) return;
+        if (code.parentElement?.classList.contains('inline-code-wrapper')) return;
+
+        code.setAttribute('data-inline-copy', 'true');
+
+        // Create wrapper
+        const wrapper = document.createElement('span');
+        wrapper.className = 'inline-code-wrapper';
+
+        // Insert wrapper before code, then move code inside
+        if (code.parentNode) {
+          code.parentNode.insertBefore(wrapper, code);
+          wrapper.appendChild(code);
+
+          // Create Text Button
+          const btn = document.createElement('button');
+          btn.className = 'inline-copy-btn';
+          btn.textContent = 'Copy';
+
+          btn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            navigator.clipboard.writeText(code.innerText || code.textContent || '').then(() => {
+              btn.textContent = 'Copied!';
+              btn.classList.add('copied');
+              window.dispatchEvent(new CustomEvent('show-viewer-toast', { detail: 'Copied to clipboard' }));
+              setTimeout(() => {
+                btn.textContent = 'Copy';
+                btn.classList.remove('copied');
+              }, 2000);
+            });
+          };
+
+          wrapper.appendChild(btn);
+        }
+      });
+    };
+
+    const observer = new MutationObserver((mutations) => {
+      let shouldProcess = false;
+      mutations.forEach(m => {
+        if (m.type === 'childList') {
+          m.addedNodes.forEach(n => {
+            if (n.nodeType === Node.ELEMENT_NODE) {
+              // Check if potentially contains code or is code
+              const el = n as Element;
+              if (el.tagName === 'CODE' || el.querySelector('code')) {
+                shouldProcess = true;
+              }
+            }
+          });
+        }
+      });
+      if (shouldProcess) setTimeout(enhance, 100);
+    });
+
+    if (typeof document !== 'undefined') {
+      enhance();
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+    return () => observer.disconnect();
+  }, [router.asPath]);
+
+  return null;
+}
+
 function EditButton() {
   const router = useRouter();
   const [slug, setSlug] = useState("");
@@ -357,6 +433,7 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <>
       <CodeBlockEnhancer />
+      <CopyTokenEnhancer />
       <EditButton />
       <Toast message={toastMsg} />
       <Component {...pageProps} components={{
