@@ -118,12 +118,6 @@ pre code,
 }
 
 /* Inline Code Copy Styles */
-.inline-code-wrapper {
-  position: relative;
-  display: inline-block;
-  vertical-align: baseline;
-}
-
 .inline-copy-btn {
   position: absolute;
   top: -24px;
@@ -141,16 +135,32 @@ pre code,
   cursor: pointer;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.15s, top 0.15s;
+  /* Default transition (for disappearing): delay 0.3s so it stays visible */
+  transition: opacity 0.2s ease 0.3s, top 0.2s ease 0.3s;
   z-index: 2000;
   white-space: nowrap;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-.inline-code-wrapper:hover .inline-copy-btn {
+/* Invisible bridge to prevent mouse gap */
+.inline-copy-btn::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  height: 15px;
+  /* Extend interaction overlay downwards */
+  background: transparent;
+}
+
+/* When hovering the code element itself, show the button */
+code:hover>.inline-copy-btn {
   opacity: 1;
   top: -28px;
   pointer-events: auto;
+  transition-delay: 0s;
+  z-index: 9999 !important;
 }
 
 .inline-copy-btn.copied {

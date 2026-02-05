@@ -279,40 +279,47 @@ function CopyTokenEnhancer() {
         if (code.closest('pre')) return;
         // Skip if already processed
         if (code.getAttribute('data-inline-copy')) return;
-        if (code.parentElement?.classList.contains('inline-code-wrapper')) return;
+        // Skip if it looks like a wrapper or internal element
+        if (code.closest('.inline-copy-btn')) return;
 
         code.setAttribute('data-inline-copy', 'true');
 
-        // Create wrapper
-        const wrapper = document.createElement('span');
-        wrapper.className = 'inline-code-wrapper';
+        // Force relative position for anchoring
+        // We use classList to avoid overwriting style attribute if possible, 
+        // but inline style is safest for immediate effect without CSS conflicts.
+        code.style.position = 'relative';
 
-        // Insert wrapper before code, then move code inside
-        if (code.parentNode) {
-          code.parentNode.insertBefore(wrapper, code);
-          wrapper.appendChild(code);
+        // Create Text Button
+        const btn = document.createElement('button');
+        btn.className = 'inline-copy-btn';
+        btn.textContent = 'Copy';
+        // Prevent button text from being selected/copied by user selection
+        btn.style.userSelect = 'none';
+        btn.contentEditable = 'false'; // Ensure it doesn't interfere with editing if any
 
-          // Create Text Button
-          const btn = document.createElement('button');
-          btn.className = 'inline-copy-btn';
-          btn.textContent = 'Copy';
+        btn.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
 
-          btn.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            navigator.clipboard.writeText(code.innerText || code.textContent || '').then(() => {
-              btn.textContent = 'Copied!';
-              btn.classList.add('copied');
-              window.dispatchEvent(new CustomEvent('show-viewer-toast', { detail: 'Copied to clipboard' }));
-              setTimeout(() => {
-                btn.textContent = 'Copy';
-                btn.classList.remove('copied');
-              }, 2000);
-            });
-          };
+          // Extract text only (exclude button)
+          // Clone node to safely remove children without affecting DOM
+          const clone = code.cloneNode(true) as HTMLElement;
+          const buttons = clone.querySelectorAll('button');
+          buttons.forEach(b => b.remove());
+          const text = clone.textContent || '';
 
-          wrapper.appendChild(btn);
-        }
+          navigator.clipboard.writeText(text).then(() => {
+            btn.textContent = 'Copied!';
+            btn.classList.add('copied');
+            window.dispatchEvent(new CustomEvent('show-viewer-toast', { detail: 'Copied to clipboard' }));
+            setTimeout(() => {
+              btn.textContent = 'Copy';
+              btn.classList.remove('copied');
+            }, 2000);
+          });
+        };
+
+        code.appendChild(btn);
       });
     };
 
@@ -322,9 +329,10 @@ function CopyTokenEnhancer() {
         if (m.type === 'childList') {
           m.addedNodes.forEach(n => {
             if (n.nodeType === Node.ELEMENT_NODE) {
-              // Check if potentially contains code or is code
               const el = n as Element;
-              if (el.tagName === 'CODE' || el.querySelector('code')) {
+              // Check if potentially contains code or is code
+              // Avoid reacting to our own button additions
+              if ((el.tagName === 'CODE' || el.querySelector('code')) && !el.classList.contains('inline-copy-btn')) {
                 shouldProcess = true;
               }
             }
