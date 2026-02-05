@@ -1047,7 +1047,7 @@ export default function Editor() {
                         body: JSON.stringify({ path: creationBase || '', key, title: key })
                     });
                     const metaPath = creationBase ? `${creationBase}/_meta.json` : '_meta.json';
-                    if (currentPost === metaPath || currentPost === `/${metaPath}`) setTimeout(() => loadPost(metaPath), 100);
+                    if (currentPost === metaPath || currentPost === `/${metaPath}`) setTimeout(() => loadPost(metaPath), 300);
                 } catch { }
 
                 fetchPosts();
@@ -1072,7 +1072,7 @@ export default function Editor() {
                         body: JSON.stringify({ path: creationBase || '', key: name, title: name })
                     });
                     const metaPath = creationBase ? `${creationBase}/_meta.json` : '_meta.json';
-                    if (currentPost === metaPath || currentPost === `/${metaPath}`) setTimeout(() => loadPost(metaPath), 100);
+                    if (currentPost === metaPath || currentPost === `/${metaPath}`) setTimeout(() => loadPost(metaPath), 300);
                 } catch { }
 
                 fetchPosts();
@@ -1098,6 +1098,8 @@ export default function Editor() {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ folderPath: parent, oldKey: getMetaKey(node.name), newKey: getMetaKey(newName) })
                     });
+                    const metaPath = parent ? `${parent}/_meta.json` : '_meta.json';
+                    if (currentPost === metaPath || currentPost === `/${metaPath}`) setTimeout(() => loadPost(metaPath), 300);
                 } catch { }
 
                 await fetchPosts();
@@ -1136,6 +1138,8 @@ export default function Editor() {
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ folderPath: parent, key })
                         });
+                        const metaPath = parent ? `${parent}/_meta.json` : '_meta.json';
+                        if (currentPost === metaPath || currentPost === `/${metaPath}`) setTimeout(() => loadPost(metaPath), 300);
                     } catch (e) {
                         console.error(e);
                     }
@@ -1168,6 +1172,8 @@ export default function Editor() {
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ path: parent || '', key: newKey, title: newKey })
                         });
+                        const metaPath = parent ? `${parent}/_meta.json` : '_meta.json';
+                        if (currentPost === metaPath || currentPost === `/${metaPath}`) setTimeout(() => loadPost(metaPath), 300);
                     } catch { }
 
                     await fetchPosts();
