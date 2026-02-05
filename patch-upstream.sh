@@ -5,6 +5,8 @@ rsync -av --delete upstream/src/components/ src/components/
 rsync -av --delete upstream/src/styles/ src/styles/
 rsync -av --delete upstream/src/pages/admin/ src/pages/admin/
 rsync -av --delete upstream/src/pages/api/ src/pages/api/
+rsync -av --delete upstream/src/pages/api/ src/pages/_app.tsx
+rsync -av --delete upstream/src/pages/api/ src/pages/_document.tsx
 
 
 ## Copy files from upstream (environment)
