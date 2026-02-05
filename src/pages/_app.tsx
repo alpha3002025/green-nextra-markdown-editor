@@ -352,6 +352,33 @@ function CopyTokenEnhancer() {
   return null;
 }
 
+function SafeImage(props: any) {
+  const [error, setError] = useState(false);
+
+  if (error) {
+    return (
+      <div style={{
+        padding: '0.75rem',
+        backgroundColor: '#fafafa',
+        border: '1px dashed #ddd',
+        borderRadius: '6px',
+        color: '#888',
+        fontSize: '0.85rem',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+        margin: '1rem 0'
+      }}>
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+        <span>{props.alt || 'Image not found'}</span>
+      </div>
+    );
+  }
+
+  // eslint-disable-next-line jsx-a11y/alt-text
+  return <img {...props} onError={() => setError(true)} style={{ maxWidth: '100%', height: 'auto', borderRadius: '6px', ...props.style }} />;
+}
+
 function EditButton() {
   const router = useRouter();
   const [slug, setSlug] = useState("");
@@ -475,7 +502,8 @@ export default function App({ Component, pageProps }: AppProps) {
           }
 
           return <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: '#42b883', textDecoration: 'underline' }}>{children}</a>;
-        }
+        },
+        img: SafeImage
       }} />
     </>
   );
