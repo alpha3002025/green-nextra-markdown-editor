@@ -354,6 +354,16 @@ function CopyTokenEnhancer() {
 
 function SafeImage(props: any) {
   const [error, setError] = useState(false);
+  const router = useRouter();
+
+  let src = props.src;
+
+  // Transform relative paths to API calls for public viewer
+  if (src && src.startsWith('./img/') && !router.pathname.startsWith('/admin')) {
+    let slug = router.asPath.split('?')[0].replace(/^\//, '').replace(/\/$/, '');
+    if (slug === '') slug = 'index';
+    src = `/api/image_preview?slug=${slug}&file=${src.replace('./img/', '')}`;
+  }
 
   if (error) {
     return (
@@ -376,7 +386,7 @@ function SafeImage(props: any) {
   }
 
   // eslint-disable-next-line jsx-a11y/alt-text
-  return <img {...props} onError={() => setError(true)} style={{ maxWidth: '100%', height: 'auto', borderRadius: '6px', ...props.style }} />;
+  return <img {...props} src={src} onError={() => setError(true)} style={{ maxWidth: '100%', height: 'auto', borderRadius: '6px', ...props.style }} />;
 }
 
 function EditButton() {
