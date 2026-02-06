@@ -1148,6 +1148,15 @@ export default function Editor() {
                         });
                         const metaPath = parent ? `${parent}/_meta.json` : '_meta.json';
                         if (currentPost === metaPath || currentPost === `/${metaPath}`) setTimeout(() => loadPost(metaPath), 300);
+
+                        const deletedPath = p.replace(/^\//, '');
+                        const current = currentPost ? currentPost.replace(/^\//, '') : '';
+                        if (current && (current === deletedPath || current.startsWith(deletedPath + '/'))) {
+                            setCurrentPost('');
+                            setEditorValue('');
+                            setContent('');
+                            router.push('/admin/editor', undefined, { shallow: true });
+                        }
                     } catch (e) {
                         console.error(e);
                     }
