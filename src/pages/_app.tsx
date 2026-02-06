@@ -360,7 +360,7 @@ function SafeImage(props: any) {
 
   // Transform relative paths to API calls for public viewer
   if (src && src.startsWith('./img/') && !router.pathname.startsWith('/admin')) {
-    let slug = router.asPath.split('?')[0].replace(/^\//, '').replace(/\/$/, '');
+    let slug = router.asPath.split('?')[0].split('#')[0].replace(/^\//, '').replace(/\/$/, '');
     if (slug === '') slug = 'index';
     src = `/api/image_preview?slug=${slug}&file=${src.replace('./img/', '')}`;
   }
