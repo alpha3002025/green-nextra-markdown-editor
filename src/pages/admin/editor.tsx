@@ -152,17 +152,17 @@ const FileTreeItem = ({
     onDragOver: (e: React.DragEvent, node: FileNode) => void,
     onDrop: (e: React.DragEvent, node: FileNode) => void,
     onDragLeave: (e: React.DragEvent) => void,
-    revealPath?: string | null
+    revealPath?: { path: string, ts: number } | null
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isFlashing, setIsFlashing] = useState(false);
     const itemRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        const isTarget = revealPath === node.path ||
-            (node.type === 'file' && revealPath && (node.path === revealPath + '.md' || node.path === revealPath + '.mdx'));
+        const isTarget = revealPath?.path === node.path ||
+            (node.type === 'file' && revealPath && (node.path === revealPath.path + '.md' || node.path === revealPath.path + '.mdx'));
 
-        const isParent = revealPath && revealPath.startsWith(node.path + '/');
+        const isParent = revealPath && revealPath.path.startsWith(node.path + '/');
 
         if (isTarget || isParent) {
             if (node.type === 'directory') setIsOpen(true);
@@ -227,7 +227,7 @@ const FileTreeItem = ({
         onDrop(e, node);
     };
 
-    const isActive = node.slug === currentPost;
+    const isActive = node.path === currentPost || (!!currentPost && node.type === 'file' && (node.path === currentPost + '.md' || node.path === currentPost + '.mdx'));
     const isSelected = selectedPaths.has(node.path);
 
     let borderStyle = {};
@@ -248,8 +248,9 @@ const FileTreeItem = ({
                 style={{
                     paddingLeft: `${1 + level * 0.8}rem`,
                     backgroundColor: isFlashing ? 'rgba(66, 184, 131, 0.5)' : (dragState !== 'none' ? (dragState === 'inside' ? 'rgba(66, 184, 131, 0.2)' : 'transparent') :
-                        (isSelected ? 'rgba(66, 184, 131, 0.3)' : (isActive ? 'rgba(66, 184, 131, 0.15)' : 'transparent'))),
+                        (isSelected ? 'rgba(66, 184, 131, 0.3)' : (isActive ? 'rgba(66, 184, 131, 0.25)' : 'transparent'))),
                     color: (isActive || isSelected) ? '#42b883' : 'inherit',
+                    fontWeight: (isActive || isSelected) ? 600 : 400,
                     transition: isFlashing ? 'background-color 0.5s' : 'all 0.1s',
                     ...borderStyle
                 }}
@@ -392,7 +393,7 @@ export default function Editor() {
     const [viewMode, setViewMode] = useState<'source' | 'preview' | 'both' | 'live'>('both')
     const [isDuplicating, setIsDuplicating] = useState(false);
     const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
-    const [revealPath, setRevealPath] = useState<string | null>(null);
+    const [revealPath, setRevealPath] = useState<{ path: string, ts: number } | null>(null);
 
     // --- Modal State ---
     const [modalConfig, setModalConfig] = useState<{
@@ -501,13 +502,25 @@ export default function Editor() {
     }, [])
 
     useEffect(() => {
+        if (!router.isReady) return;
         if (open && typeof open === 'string') {
-            if (open !== currentPost) {
-                loadPost(open)
-                setRevealPath(open);
+            const decodedPath = decodeURIComponent(open);
+            if (decodedPath !== currentPost) {
+                loadPost(decodedPath)
+                setRevealPath({ path: decodedPath, ts: Date.now() });
             }
         }
-    }, [open, currentPost])
+    }, [router.isReady, open, currentPost])
+
+    useEffect(() => {
+        if (posts.length > 0 && currentPost && open && typeof open === 'string') {
+            const decodedPath = decodeURIComponent(open);
+            if (decodedPath === currentPost) {
+                // Re-trigger reveal when posts are loaded to ensure deep linking works
+                setRevealPath({ path: decodedPath, ts: Date.now() });
+            }
+        }
+    }, [posts.length, currentPost, open]);
 
     useEffect(() => {
         const handleClick = () => setContextMenu(null);
@@ -1503,7 +1516,7 @@ export default function Editor() {
                                                 {index > 0 && <span style={{ color: '#ccc' }}>/</span>}
                                                 <span
                                                     onClick={() => {
-                                                        setRevealPath(path);
+                                                        setRevealPath({ path, ts: Date.now() });
                                                         setSelectedPaths(new Set([path]));
                                                         setSidebarOpen(true);
                                                         // window.dispatchEvent(new CustomEvent('show-toast', { detail: `Focused ${part}` }));
