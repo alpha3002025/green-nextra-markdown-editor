@@ -138,7 +138,8 @@ const FileTreeItem = ({
     onDragStart,
     onDragOver,
     onDrop,
-    onDragLeave
+    onDragLeave,
+    revealPath
 }: {
     node: FileNode,
     level: number,
@@ -150,9 +151,29 @@ const FileTreeItem = ({
     onDragStart: (e: React.DragEvent, node: FileNode) => void,
     onDragOver: (e: React.DragEvent, node: FileNode) => void,
     onDrop: (e: React.DragEvent, node: FileNode) => void,
-    onDragLeave: (e: React.DragEvent) => void
+    onDragLeave: (e: React.DragEvent) => void,
+    revealPath?: string | null
 }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [isFlashing, setIsFlashing] = useState(false);
+    const itemRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const isTarget = revealPath === node.path ||
+            (node.type === 'file' && revealPath && (node.path === revealPath + '.md' || node.path === revealPath + '.mdx'));
+
+        const isParent = revealPath && revealPath.startsWith(node.path + '/');
+
+        if (isTarget || isParent) {
+            if (node.type === 'directory') setIsOpen(true);
+            if (isTarget) {
+                if (itemRef.current) setTimeout(() => itemRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+                setIsFlashing(true);
+                setTimeout(() => setIsFlashing(false), 2000);
+            }
+        }
+    }, [revealPath, node.path, node.type]);
+
     const [dragState, setDragState] = useState<'none' | 'top' | 'bottom' | 'inside'>('none');
 
     const handleClick = (e: React.MouseEvent) => {
@@ -217,6 +238,7 @@ const FileTreeItem = ({
     return (
         <div>
             <div
+                ref={itemRef}
                 draggable
                 onDragStart={(e) => onDragStart(e, node)}
                 onDragOver={handleDragOver}
@@ -225,10 +247,10 @@ const FileTreeItem = ({
                 className={styles.postItem}
                 style={{
                     paddingLeft: `${1 + level * 0.8}rem`,
-                    backgroundColor: dragState !== 'none' ? (dragState === 'inside' ? 'rgba(66, 184, 131, 0.2)' : 'transparent') :
-                        (isSelected ? 'rgba(66, 184, 131, 0.3)' : (isActive ? 'rgba(66, 184, 131, 0.1)' : 'transparent')),
+                    backgroundColor: isFlashing ? 'rgba(66, 184, 131, 0.5)' : (dragState !== 'none' ? (dragState === 'inside' ? 'rgba(66, 184, 131, 0.2)' : 'transparent') :
+                        (isSelected ? 'rgba(66, 184, 131, 0.3)' : (isActive ? 'rgba(66, 184, 131, 0.15)' : 'transparent'))),
                     color: (isActive || isSelected) ? '#42b883' : 'inherit',
-                    transition: 'all 0.1s',
+                    transition: isFlashing ? 'background-color 0.5s' : 'all 0.1s',
                     ...borderStyle
                 }}
                 onClick={handleClick}
@@ -260,6 +282,7 @@ const FileTreeItem = ({
                             onDragOver={onDragOver}
                             onDrop={onDrop}
                             onDragLeave={onDragLeave}
+                            revealPath={revealPath}
                         />
                     ))}
                 </div>
@@ -369,6 +392,7 @@ export default function Editor() {
     const [viewMode, setViewMode] = useState<'source' | 'preview' | 'both' | 'live'>('both')
     const [isDuplicating, setIsDuplicating] = useState(false);
     const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
+    const [revealPath, setRevealPath] = useState<string | null>(null);
 
     // --- Modal State ---
     const [modalConfig, setModalConfig] = useState<{
@@ -480,6 +504,7 @@ export default function Editor() {
         if (open && typeof open === 'string') {
             if (open !== currentPost) {
                 loadPost(open)
+                setRevealPath(open);
             }
         }
     }, [open, currentPost])
@@ -1407,6 +1432,7 @@ export default function Editor() {
                             onDragOver={handleNodeDragOver}
                             onDrop={handleNodeDrop}
                             onDragLeave={handleNodeDragLeave}
+                            revealPath={revealPath}
                         />
                     ))}
                     <div style={{ flex: 1, minHeight: '50px' }} onContextMenu={(e) => handleContextMenu(e, { name: 'Root', type: 'directory', path: '' } as FileNode)} />
@@ -1467,7 +1493,38 @@ export default function Editor() {
                                 </button>
                             </form>
                         ) : (
-                            <span className={styles.currentTitle}>{currentPost || 'Welcome to Editor'}</span>
+                            <div className={styles.currentTitle} style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                {currentPost ? (
+                                    currentPost.split('/').map((part, index, arr) => {
+                                        const path = arr.slice(0, index + 1).join('/');
+                                        const isLast = index === arr.length - 1;
+                                        return (
+                                            <React.Fragment key={path}>
+                                                {index > 0 && <span style={{ color: '#ccc' }}>/</span>}
+                                                <span
+                                                    onClick={() => {
+                                                        setRevealPath(path);
+                                                        setSelectedPaths(new Set([path]));
+                                                        setSidebarOpen(true);
+                                                        // window.dispatchEvent(new CustomEvent('show-toast', { detail: `Focused ${part}` }));
+                                                    }}
+                                                    style={{
+                                                        cursor: 'pointer',
+                                                        color: isLast ? 'inherit' : '#666',
+                                                        fontWeight: isLast ? 600 : 400
+                                                    }}
+                                                    onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline'; }}
+                                                    onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none'; }}
+                                                >
+                                                    {part}
+                                                </span>
+                                            </React.Fragment>
+                                        );
+                                    })
+                                ) : (
+                                    'Welcome to Editor'
+                                )}
+                            </div>
                         )}
                         {currentPost && !isRenamingTitle && (
                             <>
