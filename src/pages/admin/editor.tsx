@@ -271,7 +271,7 @@ const FileTreeItem = ({
                 <div>
                     {node.children.map((child, i) => (
                         <FileTreeItem
-                            key={i}
+                            key={child.path}
                             node={child}
                             level={level + 1}
                             onLoadPost={onLoadPost}
@@ -1096,9 +1096,8 @@ export default function Editor() {
                     if (currentPost === metaPath || currentPost === `/${metaPath}`) setTimeout(() => loadPost(metaPath), 300);
                 } catch { }
 
-                fetchPosts();
-                setTimeout(() => loadPost(path), 200);
-
+                await fetchPosts();
+                router.replace({ query: { ...router.query, open: path } }, undefined, { shallow: true });
             } else if (action === 'new_folder') {
                 const name = await showPrompt('Enter new folder name:');
                 if (!name) return;
@@ -1121,7 +1120,8 @@ export default function Editor() {
                     if (currentPost === metaPath || currentPost === `/${metaPath}`) setTimeout(() => loadPost(metaPath), 300);
                 } catch { }
 
-                fetchPosts();
+                await fetchPosts();
+                setRevealPath({ path, ts: Date.now() });
             } else if (action === 'rename') {
                 const newName = await showPrompt('Enter new name:', node.name);
                 if (!newName || newName === node.name) return;
@@ -1433,7 +1433,7 @@ export default function Editor() {
                 <div className={styles.postList}>
                     {posts.map((node, i) => (
                         <FileTreeItem
-                            key={i}
+                            key={node.path}
                             node={node}
                             level={0}
                             onLoadPost={(slug) => router.push(`/admin/editor?open=${slug}`, undefined, { shallow: true })}
