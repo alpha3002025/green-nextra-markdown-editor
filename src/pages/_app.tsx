@@ -463,6 +463,110 @@ function EditButton() {
   );
 }
 
+function BreadcrumbEnhancer() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const enhance = () => {
+      // Find the breadcrumb container - Nextra structure varies
+      const breadcrumbList = document.querySelector('.nextra-breadcrumb ul, nav[aria-label="breadcrumb"] ol');
+
+      // Fallback: Try finding the container directly if list not found
+      const breadcrumbContainer = breadcrumbList || document.querySelector('.nextra-breadcrumb');
+
+      if (breadcrumbContainer) {
+        // Remove existing button if it's attached anywhere nearby (to prevent duplicates and update path)
+        const existingBtn = document.querySelector('.bc-copy-btn');
+        if (existingBtn) existingBtn.remove();
+
+        const btn = document.createElement('button');
+        btn.className = 'bc-copy-btn';
+        btn.innerHTML = COPY_ICON;
+        btn.style.background = 'transparent';
+        btn.style.border = 'none';
+        btn.style.cursor = 'pointer';
+        btn.style.marginLeft = '8px';
+        btn.style.padding = '4px';
+        btn.style.color = '#aaa';
+        btn.style.borderRadius = '4px';
+        btn.style.display = 'inline-flex';
+        btn.style.alignItems = 'center';
+        btn.title = 'Copy relative path';
+        btn.style.transition = 'all 0.2s';
+
+        // Ensure it doesn't shrink
+        btn.style.flexShrink = '0';
+
+        btn.onmouseenter = () => {
+          btn.style.color = '#42b883';
+          btn.style.backgroundColor = 'rgba(66, 184, 131, 0.1)';
+        };
+        btn.onmouseleave = () => {
+          btn.style.color = '#aaa';
+          btn.style.backgroundColor = 'transparent';
+        };
+
+        btn.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+
+          // Use router.asPath directly
+          let path = router.asPath.split('?')[0].split('#')[0];
+
+          // Decode URI component to handle Korean/Special chars
+          path = decodeURIComponent(path);
+
+          // Remove leading slash
+          path = path.replace(/^\//, '');
+
+          if (!path) path = 'index';
+
+          navigator.clipboard.writeText(path).then(() => {
+            btn.innerHTML = CHECK_ICON;
+            window.dispatchEvent(new CustomEvent('show-viewer-toast', { detail: 'Path copied: ' + path }));
+            setTimeout(() => {
+              btn.innerHTML = COPY_ICON;
+            }, 2000);
+          });
+        };
+
+        // Append logic: Find the best place to put it.
+        // If it's a list (ul/ol), we usually want it AFTER the list, inside the nav wrapper.
+        if ((breadcrumbContainer.tagName === 'UL' || breadcrumbContainer.tagName === 'OL') && breadcrumbContainer.parentElement) {
+          // Make sure parent is flex to align them
+          const parent = breadcrumbContainer.parentElement;
+          if (window.getComputedStyle(parent).display !== 'flex') {
+            parent.style.display = 'flex';
+            parent.style.alignItems = 'center';
+          }
+          parent.appendChild(btn);
+        } else {
+          // If it's just a div or nav, append directly
+          breadcrumbContainer.appendChild(btn);
+        }
+      }
+    };
+
+    if (typeof document !== 'undefined') {
+      // Run immediately and after short delays to catch render updates
+      enhance();
+      setTimeout(enhance, 200);
+      setTimeout(enhance, 500);
+
+      const observer = new MutationObserver(() => {
+        if (!document.querySelector('.bc-copy-btn')) {
+          enhance();
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+
+      return () => observer.disconnect();
+    }
+  }, [router.asPath]);
+
+  return null;
+}
+
 export default function App({ Component, pageProps }: AppProps) {
   const [toastMsg, setToastMsg] = useState('');
 
@@ -480,6 +584,7 @@ export default function App({ Component, pageProps }: AppProps) {
       <CodeBlockEnhancer />
       <CopyTokenEnhancer />
       <EditButton />
+      <BreadcrumbEnhancer />
       <Toast message={toastMsg} />
       <Component {...pageProps} components={{
         a: ({ href, children }: any) => {
