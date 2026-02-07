@@ -1368,6 +1368,20 @@ export default function Editor() {
                             {isSidebarOpen ? <ChevronLeft size={20} /> : <Menu size={20} />}
                         </button>
                         <span className={styles.currentTitle}>{currentPost || 'Welcome to Editor'}</span>
+                        {currentPost && (
+                            <button
+                                className={styles.toggleBtn}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard.writeText(currentPost);
+                                    window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Path copied to clipboard' }));
+                                }}
+                                title="Copy relative path"
+                                style={{ marginLeft: '0.5rem' }}
+                            >
+                                <Copy size={16} />
+                            </button>
+                        )}
                         <span className={styles.status}>{status}</span>
                     </div>
                     <div className={styles.topBarRight}>
