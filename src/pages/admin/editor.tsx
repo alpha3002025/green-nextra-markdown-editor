@@ -580,7 +580,12 @@ export default function Editor() {
             setInitialContent(data.content)
             setEditorValue(data.content) // Set editorValue only once on load
             setCurrentPost(slug)
+            setCurrentPost(slug)
             setStatus('')
+        } else {
+            console.error('Failed to load post', slug);
+            setStatus(''); // Clear loading state on error
+            window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Failed to load post' }));
         }
     }
 
@@ -952,6 +957,7 @@ export default function Editor() {
                 body: JSON.stringify({ folderPath: oldParent || '/', key })
             });
             const oldMeta = oldParent ? `${oldParent}/_meta.json` : '_meta.json';
+            // Reload meta if it was open (though unlikely to be "currentPost" in the main sense, but good to keep)
             if (currentPost === oldMeta || currentPost === `/${oldMeta}`) setTimeout(() => loadPost(oldMeta), 300);
 
             await fetch('/api/meta', {
@@ -963,7 +969,34 @@ export default function Editor() {
             if (currentPost === newMeta || currentPost === `/${newMeta}`) setTimeout(() => loadPost(newMeta), 300);
 
             window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Moved successfully' }));
+
+            // Check if we need to switch context or active post
+            const isFile = node.type === 'file';
+            const isDirectory = node.type === 'directory';
+
+            if (isFile) {
+                // User expects the moved file to be opened/focused immediately
+                const targetSlug = newPath.replace(/\.(md|mdx)$/, '');
+
+                // Explicitly point to the new path for Explorer focus
+                setRevealPath({ path: newPath, ts: Date.now() });
+
+                setCurrentPost(targetSlug);
+                await router.replace({ query: { ...router.query, open: targetSlug } }, undefined, { shallow: true });
+
+            } else if (isDirectory && currentPost && currentPost.startsWith(node.path + '/')) {
+                // If moving a directory that contains the current post, update the path
+                const nextPost = newPath + currentPost.substring(node.path.length);
+
+                setRevealPath({ path: newPath, ts: Date.now() });
+
+                setCurrentPost(nextPost);
+                await router.replace({ query: { ...router.query, open: nextPost } }, undefined, { shallow: true });
+            }
+
+            // Fetch posts AFTER updating the URL so the editor is already pointing to the new location
             await fetchPosts();
+
             return true;
         } catch (e: any) {
             console.error(e);

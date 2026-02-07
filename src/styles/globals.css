@@ -120,7 +120,8 @@ pre code,
 /* Inline Code Copy Styles */
 .inline-copy-btn {
   position: absolute;
-  top: -24px;
+  top: -28px;
+  /* Fixed position, no sliding */
   right: 0;
   /* Align to right edge */
   transform: none;
@@ -136,7 +137,7 @@ pre code,
   opacity: 0;
   pointer-events: none;
   /* Default transition (for disappearing): delay 0.3s so it stays visible */
-  transition: opacity 0.2s ease 0.3s, top 0.2s ease 0.3s;
+  transition: opacity 0.2s ease 0.3s;
   z-index: 2000;
   white-space: nowrap;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
@@ -155,9 +156,9 @@ pre code,
 }
 
 /* When hovering the code element itself, show the button */
-code:hover>.inline-copy-btn {
+code:hover>.inline-copy-btn,
+.inline-copy-btn.copied {
   opacity: 1;
-  top: -28px;
   pointer-events: auto;
   transition-delay: 0s;
   z-index: 9999 !important;
