@@ -8,7 +8,7 @@ import {
     Bold, Italic, Heading1, Heading2, List, ListOrdered,
     Quote, Link as LinkIcon, Image as ImageIcon, Code, Strikethrough, Braces,
     FileText, Menu, ChevronLeft, ChevronRight, ChevronDown, Save, Plus, Copy, X, ArrowLeft, Folder, FolderOpen,
-    Trash, Recycle
+    Trash, Recycle, Edit2, Check
 } from 'lucide-react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism'
@@ -1204,6 +1204,81 @@ export default function Editor() {
         }
     }
 
+    const [isRenamingTitle, setIsRenamingTitle] = useState(false);
+    const [renameValue, setRenameValue] = useState('');
+
+    const handleTitleRename = async () => {
+        if (!currentPost || !renameValue) {
+            setIsRenamingTitle(false);
+            return;
+        }
+
+        // Reconstruct full path
+        const parts = currentPost.split('/');
+        parts.pop(); // remove old filename
+        const directory = parts.join('/');
+
+        let newName = renameValue.trim();
+        let newPath = directory ? `${directory}/${newName}` : newName;
+
+        if (newPath === currentPost) {
+            setIsRenamingTitle(false);
+            return;
+        }
+
+        // Auto-append extension if missing and original had one
+        if (currentPost.endsWith('.md') && !newPath.endsWith('.md')) newPath += '.md';
+        else if (currentPost.endsWith('.mdx') && !newPath.endsWith('.mdx')) newPath += '.mdx';
+
+        try {
+            const res = await fetch('/api/fs', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ oldPath: currentPost, newPath })
+            });
+
+            if (!res.ok) throw new Error('Failed to rename file');
+
+            // Try to update _meta.json if in same directory
+            try {
+                const oldParts = currentPost.split('/');
+                const oldName = oldParts.pop() || '';
+                const oldParent = oldParts.join('/');
+
+                const newParts = newPath.split('/');
+                const newNameWithoutExt = newParts.pop() || ''; // already has extension added above if needed
+                const newParent = newParts.join('/');
+
+                if (oldParent === newParent) {
+                    const getMetaKey = (name: string) => name.replace(/\.(md|mdx)$/, '');
+                    await fetch('/api/meta', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            folderPath: oldParent,
+                            oldKey: getMetaKey(oldName),
+                            newKey: getMetaKey(newNameWithoutExt)
+                        })
+                    });
+                }
+            } catch (ignore) { }
+
+            await fetchPosts();
+
+            // Redirect to new path
+            setCurrentPost(newPath);
+            router.replace({ query: { ...router.query, open: newPath } }, undefined, { shallow: true });
+            setTimeout(() => loadPost(newPath), 100);
+
+            window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Renamed successfully' }));
+        } catch (e: any) {
+            console.error(e);
+            window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Rename failed: ' + e.message }));
+        } finally {
+            setIsRenamingTitle(false);
+        }
+    };
+
     const handleHeaderDrop = (e: React.DragEvent, targetIndex: number) => {
         e.preventDefault();
         (e.currentTarget as HTMLElement).style.background = 'transparent';
@@ -1367,20 +1442,61 @@ export default function Editor() {
                         <button className={styles.toggleBtn} onClick={() => setSidebarOpen(!isSidebarOpen)}>
                             {isSidebarOpen ? <ChevronLeft size={20} /> : <Menu size={20} />}
                         </button>
-                        <span className={styles.currentTitle}>{currentPost || 'Welcome to Editor'}</span>
-                        {currentPost && (
-                            <button
-                                className={styles.toggleBtn}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigator.clipboard.writeText(currentPost);
-                                    window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Path copied to clipboard' }));
-                                }}
-                                title="Copy relative path"
-                                style={{ marginLeft: '0.5rem' }}
+                        {isRenamingTitle ? (
+                            <form
+                                onSubmit={(e) => { e.preventDefault(); handleTitleRename(); }}
+                                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                             >
-                                <Copy size={16} />
-                            </button>
+                                {currentPost && currentPost.includes('/') && (
+                                    <span style={{ color: '#888', marginRight: '0', fontSize: '0.95rem', fontWeight: 500 }}>
+                                        {currentPost.substring(0, currentPost.lastIndexOf('/') + 1)}
+                                    </span>
+                                )}
+                                <input
+                                    className={styles.modalInput}
+                                    style={{ padding: '0.2rem 0.5rem', width: '200px', fontSize: '1rem' }}
+                                    value={renameValue}
+                                    onChange={(e) => setRenameValue(e.target.value)}
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Escape') setIsRenamingTitle(false);
+                                    }}
+                                />
+                                <button type="submit" className={styles.toggleBtn} title="Save Name">
+                                    <Check size={16} color="#42b883" />
+                                </button>
+                            </form>
+                        ) : (
+                            <span className={styles.currentTitle}>{currentPost || 'Welcome to Editor'}</span>
+                        )}
+                        {currentPost && !isRenamingTitle && (
+                            <>
+                                <button
+                                    className={styles.toggleBtn}
+                                    onClick={() => {
+                                        const parts = currentPost.split('/');
+                                        const filename = parts.pop() || '';
+                                        setRenameValue(filename);
+                                        setIsRenamingTitle(true);
+                                    }}
+                                    title="Rename file"
+                                    style={{ marginLeft: '0.5rem' }}
+                                >
+                                    <Edit2 size={16} />
+                                </button>
+                                <button
+                                    className={styles.toggleBtn}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigator.clipboard.writeText(currentPost);
+                                        window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Path copied to clipboard' }));
+                                    }}
+                                    title="Copy relative path"
+                                    style={{ marginLeft: '0.25rem' }}
+                                >
+                                    <Copy size={16} />
+                                </button>
+                            </>
                         )}
                         <span className={styles.status}>{status}</span>
                     </div>
