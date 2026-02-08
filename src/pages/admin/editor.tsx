@@ -658,6 +658,34 @@ export default function Editor() {
         setActiveHeaderId(null);
     }, []);
 
+    // Scroll Spy for Preview Mode
+    useEffect(() => {
+        if (viewMode !== 'preview' && viewMode !== 'both') return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        setActiveHeaderId(entry.target.id);
+                    }
+                });
+            },
+            {
+                root: document.querySelector(`.${styles.previewContent}`), // Use Preview Content as root
+                rootMargin: '0px 0px -80% 0px', // Trigger when top 20% of header is visible
+                threshold: 0
+            }
+        );
+
+        const headings = document.querySelectorAll(`.${styles.previewContent} h1, .${styles.previewContent} h2, .${styles.previewContent} h3, .${styles.previewContent} h4, .${styles.previewContent} h5, .${styles.previewContent} h6`);
+        headings.forEach((heading) => observer.observe(heading));
+
+        return () => {
+            headings.forEach((heading) => observer.unobserve(heading));
+            observer.disconnect();
+        };
+    }, [viewMode, debouncedContent]); // Re-run when content changes or mode changes
+
     const processFileUpload = useCallback(async (file: File, view?: EditorView) => {
         const slug = currentPostRef.current;
         if (!slug) return;
