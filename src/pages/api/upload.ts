@@ -85,7 +85,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const hh = String(now.getHours()).padStart(2, '0')
         const min = String(now.getMinutes()).padStart(2, '0')
         const ss = String(now.getSeconds()).padStart(2, '0')
-        const timestamp = `${yyyy}${mm}${dd}-${hh}-${mm}-${ss}`
+        const timestamp = `${yyyy}${mm}${dd}-${hh}-${min}-${ss}`
 
         const existing = fs.readdirSync(imgDir).filter(f => f.startsWith(timestamp))
         const seq = existing.length + 1
