@@ -567,6 +567,89 @@ function BreadcrumbEnhancer() {
   return null;
 }
 
+function HeaderCopyEnhancer() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const enhance = () => {
+      // Viewer H1 usually has a specific class or just is an H1 in the main content
+      // Nextra content is usually in <main> or .nextra-content
+      const main = document.querySelector('main');
+      if (!main) return;
+
+      const h1s = main.querySelectorAll('h1');
+      h1s.forEach((h1: any) => {
+        if (h1.querySelector('.header-copy-btn')) return;
+
+        // Ensure clean layout
+        if (window.getComputedStyle(h1).display !== 'flex') {
+          h1.style.display = 'flex';
+          h1.style.alignItems = 'center';
+          h1.style.gap = '8px';
+        }
+
+        const btn = document.createElement('button');
+        btn.className = 'header-copy-btn';
+        btn.innerHTML = COPY_ICON;
+        btn.style.background = 'transparent';
+        btn.style.border = 'none';
+        btn.style.cursor = 'pointer';
+        btn.style.color = '#ccc'; // Default dim
+        btn.style.padding = '4px';
+        btn.style.display = 'flex';
+        btn.style.alignItems = 'center';
+        btn.style.transition = 'all 0.2s';
+        btn.title = 'Copy title';
+
+        // Hover effects
+        btn.onmouseenter = () => {
+          btn.style.color = '#42b883';
+          btn.style.transform = 'scale(1.1)';
+        };
+        btn.onmouseleave = () => {
+          btn.style.color = '#ccc';
+          btn.style.transform = 'scale(1)';
+        };
+
+        btn.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+
+          // Extract text without the button itself
+          const clone = h1.cloneNode(true) as HTMLElement;
+          const buttons = clone.querySelectorAll('button');
+          buttons.forEach(b => b.remove());
+          // Also remove potential anchor links if Nextra adds them (like #)
+          const anchors = clone.querySelectorAll('a.anchor');
+          anchors.forEach(a => a.remove());
+
+          const text = clone.textContent?.trim() || '';
+
+          navigator.clipboard.writeText(text).then(() => {
+            btn.innerHTML = CHECK_ICON;
+            window.dispatchEvent(new CustomEvent('show-viewer-toast', { detail: 'Title copied' }));
+            setTimeout(() => {
+              btn.innerHTML = COPY_ICON;
+            }, 2000);
+          });
+        };
+
+        h1.appendChild(btn);
+      });
+    };
+
+    if (typeof document !== 'undefined') {
+      enhance();
+      // Observe for changes (e.g. client-side navigation)
+      const observer = new MutationObserver(enhance);
+      observer.observe(document.body, { childList: true, subtree: true });
+      return () => observer.disconnect();
+    }
+  }, [router.asPath]);
+
+  return null;
+}
+
 export default function App({ Component, pageProps }: AppProps) {
   const [toastMsg, setToastMsg] = useState('');
 
@@ -583,6 +666,7 @@ export default function App({ Component, pageProps }: AppProps) {
     <>
       <CodeBlockEnhancer />
       <CopyTokenEnhancer />
+      <HeaderCopyEnhancer />
       <EditButton />
       <BreadcrumbEnhancer />
       <Toast message={toastMsg} />

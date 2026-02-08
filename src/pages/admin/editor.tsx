@@ -80,7 +80,16 @@ function CodeBlock({ language, value }: { language: string, value: string }) {
                     wrapLines={true}
                     wrapLongLines={true}
                     showLineNumbers={true}
-                    lineNumberStyle={{ minWidth: '2.5em', paddingRight: '1em', color: '#6e7681', textAlign: 'right', userSelect: 'none' }} // Prevent selecting line numbers
+                    lineNumberStyle={{
+                        minWidth: '2.5em',
+                        paddingRight: '1em',
+                        color: '#6e7681',
+                        textAlign: 'right',
+                        userSelect: 'none',
+                        WebkitUserSelect: 'none',
+                        MozUserSelect: 'none',
+                        msUserSelect: 'none'
+                    }} // Prevent selecting line numbers
                     customStyle={{ userSelect: 'text', margin: 0, borderRadius: 0 }} // Ensure code text is selectable
                     lineProps={(lineNumber: number) => {
                         const isSelected = selectedLine === lineNumber;
@@ -1722,7 +1731,36 @@ export default function Editor() {
                                                 else if (!inline && codeContent.includes('\n')) return <CodeBlock language="text" value={codeContent} />
                                                 return <code className={className} {...props}>{children}</code>
                                             },
-                                            h1: ({ children }) => <h1 id={generateSlug(extractText(children))}>{children}</h1>,
+                                            h1: ({ children }) => {
+                                                const text = extractText(children);
+                                                return (
+                                                    <h1 id={generateSlug(text)} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        {children}
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                navigator.clipboard.writeText(text);
+                                                                window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Title copied' }));
+                                                            }}
+                                                            style={{
+                                                                background: 'none',
+                                                                border: 'none',
+                                                                cursor: 'pointer',
+                                                                color: '#ccc',
+                                                                padding: '4px',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                transition: 'all 0.2s',
+                                                            }}
+                                                            title="Copy title"
+                                                            onMouseEnter={(e) => { e.currentTarget.style.color = '#42b883'; e.currentTarget.style.transform = 'scale(1.1)'; }}
+                                                            onMouseLeave={(e) => { e.currentTarget.style.color = '#ccc'; e.currentTarget.style.transform = 'scale(1)'; }}
+                                                        >
+                                                            <Copy size={20} className="copy-icon" />
+                                                        </button>
+                                                    </h1>
+                                                )
+                                            },
                                             h2: ({ children }) => <h2 id={generateSlug(extractText(children))}>{children}</h2>,
                                             h3: ({ children }) => <h3 id={generateSlug(extractText(children))}>{children}</h3>,
                                             h4: ({ children }) => <h4 id={generateSlug(extractText(children))}>{children}</h4>,
