@@ -21,6 +21,7 @@ import rehypeKatex from 'rehype-katex';
 
 import { YouTubeEmbed, getYouTubeId } from '@/components/YouTubeEmbed';
 import { LinkPreview } from '@/components/LinkPreview';
+import Mermaid from '@/components/Mermaid'; // Import Mermaid component
 import { Inter } from 'next/font/google'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -1755,6 +1756,9 @@ export default function Editor() {
                                             code({ node, inline, className, children, ...props }: any) {
                                                 const match = /language-(\w+)/.exec(className || '')
                                                 const codeContent = String(children).replace(/\n$/, '')
+                                                if (!inline && match && match[1] === 'mermaid') {
+                                                    return <Mermaid chart={codeContent} />
+                                                }
                                                 if (!inline && match) return <CodeBlock language={match[1]} value={codeContent} />
                                                 else if (!inline && codeContent.includes('\n')) return <CodeBlock language="text" value={codeContent} />
                                                 return <code className={className} {...props}>{children}</code>

@@ -9,6 +9,7 @@ import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { YouTubeEmbed, getYouTubeId } from "@/components/YouTubeEmbed";
 import { LinkPreview } from "@/components/LinkPreview";
+import Mermaid from "@/components/Mermaid";
 
 // Standard SVG paths for icons
 const COPY_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
@@ -701,6 +702,34 @@ export default function App({ Component, pageProps }: AppProps) {
           }
 
           return <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: '#42b883', textDecoration: 'underline' }}>{children}</a>;
+        },
+        code: ({ className, children, ...props }: any) => {
+          const match = /language-(\w+)/.exec(className || '');
+          const language = match ? match[1] : (props['data-language'] || '');
+
+          if (language === 'mermaid') {
+            // Attempt to extract text content
+            let codeText = '';
+            if (typeof children === 'string') {
+              codeText = children;
+            } else if (Array.isArray(children)) {
+              // If children are mixed (strings/elements), join valid strings
+              // But typically if it's highlighted, it's spans. 
+              // However, mermaid is often NOT highlighted by standard highlighters.
+              // We'll try to extract text from React children if possible or fallback.
+              React.Children.forEach(children, child => {
+                if (typeof child === 'string') codeText += child;
+                // else if child has props.children... it gets complex.
+              });
+            }
+
+            // If we didn't get simple text, we might need a Ref or DOM lookup 
+            // but simpler is to assume if it wasn't highlighted, it's text.
+            if (codeText) {
+              return <Mermaid chart={codeText.trim()} />;
+            }
+          }
+          return <code className={className} {...props}>{children}</code>;
         },
         img: SafeImage
       }} />
