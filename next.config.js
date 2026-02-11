@@ -7,5 +7,8 @@ const withNextra = require('nextra')({
 
 module.exports = withNextra({
     reactStrictMode: false,
-    // Optional: assetPrefix, basePath, etc.
+    output: 'export',
+    images: {
+        unoptimized: true
+    }
 })
