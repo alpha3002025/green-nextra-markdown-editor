@@ -5,10 +5,14 @@ const withNextra = require('nextra')({
     staticImage: false,
 })
 
+const isProd = process.env.NODE_ENV === 'production'
+const repoName = 'green-nextra-markdown-editor'
+
 module.exports = withNextra({
     reactStrictMode: false,
     output: 'export',
     images: {
         unoptimized: true
-    }
+    },
+    basePath: isProd ? `/${repoName}` : '',
 })
