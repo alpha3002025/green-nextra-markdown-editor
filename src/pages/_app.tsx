@@ -10,6 +10,7 @@ import { createPortal } from "react-dom";
 import { YouTubeEmbed, getYouTubeId } from "@/components/YouTubeEmbed";
 import { LinkPreview } from "@/components/LinkPreview";
 import Mermaid from "@/components/Mermaid";
+import { SITE_CONFIG } from '../../site.config';
 
 // Standard SVG paths for icons
 const COPY_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
@@ -358,6 +359,46 @@ function SafeImage(props: any) {
   const router = useRouter();
 
   let src = props.src;
+  const basePath = SITE_CONFIG.basePath || '';
+
+  // Fix for GitHub Pages (Production):
+  // Top-level folders (e.g. /images) resolve relative paths like './img/...' to '/img/...' (root)
+  // instead of '/images/img/...'. We must explicitly fix this for known directory pages.
+  // We identify directory pages if they are in this list.
+  // Note: /index (Home) works fine because it's at root.
+  const knownFolderPages = ['/images', '/notice', '/mermaid', '/textblock', '/external-link', '/deploy'];
+
+  const isFolderPage = knownFolderPages.some(p => router.pathname === p || router.pathname.startsWith(p + '/index'));
+
+  if (process.env.NODE_ENV === 'production' && src && src.startsWith('./img/')) {
+    if (isFolderPage) {
+      // Rewrite to: basePath + /folder + /img/...
+      // remove '.' from start
+      const cleanSrc = src.substring(1); // '/img/...'
+      // router.pathname might be '/images'.
+      // final: /repo/images/img/foo.png
+
+      // Handle case where pathname might be deeply nested? 
+      // If we are deep, './img' works fine generally.
+      // Only strictly top-level folders have this issue.
+      // However, if we just use the current path as prefix, it works for folders.
+
+      // Ensure we don't double slash
+      const prefix = router.pathname === '/' ? '' : router.pathname;
+      src = `${basePath}${prefix}${cleanSrc}`;
+    } else {
+      // For normal files (leafs), relative path usually works, 
+      // BUT if basePath is present, we might need to be careful?
+      // Actually, relative paths in HTML respect the <base> tag or current URL.
+      // If current URL is /repo/deploy/page.
+      // ./img -> /repo/deploy/img.
+      // This is correct.
+
+      // However, if we want to be 100% safe, we could use absolute paths everywhere?
+      // But identifying the "directory" of a "file route" is hard (dirname).
+      // So we only fix the broken case.
+    }
+  }
 
   // Transform relative paths to API calls for public viewer (Development Only)
   if (process.env.NODE_ENV === 'development' && src && src.startsWith('./img/') && !router.pathname.startsWith('/admin')) {
