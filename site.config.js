@@ -14,6 +14,10 @@ const SITE_CONFIG = {
     ...CONFIG,
     // Automatically generate GitHub URL
     github: `https://github.com/${CONFIG.username}/${CONFIG.repoName}`,
+
+    // ⚙️ Base Path (Leave empty '' for Custom Domain / S3, set to `/${CONFIG.repoName}` for GitHub Pages)
+    basePath: `/${CONFIG.repoName}`,
+    // basePath: '', // <--- Uncomment this if you are using a Custom Domain (S3)
 }
 
 module.exports = { SITE_CONFIG }

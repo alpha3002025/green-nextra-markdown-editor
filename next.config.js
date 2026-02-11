@@ -11,9 +11,9 @@ const isProd = process.env.NODE_ENV === 'production'
 
 module.exports = withNextra({
     reactStrictMode: false,
-    output: 'export',
+    output: isProd ? 'export' : undefined,
     images: {
         unoptimized: true
     },
-    basePath: isProd ? `/${SITE_CONFIG.repoName}` : '',
+    basePath: isProd ? SITE_CONFIG.basePath : '',
 })
