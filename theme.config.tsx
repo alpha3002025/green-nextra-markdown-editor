@@ -2,32 +2,34 @@ import React from 'react'
 import { DocsThemeConfig } from 'nextra-theme-docs'
 import { ThemeSelector } from '@/components/ThemeSelector'
 
+import { SITE_CONFIG } from './site.config'
+
 const config: DocsThemeConfig = {
     navbar: {
         extraContent: <ThemeSelector />
     },
     // (1)
-    logo: <span style={{ fontWeight: 800 }}>Vue-like Docs</span>,
+    logo: <span style={{ fontWeight: 800 }}>{SITE_CONFIG.title}</span>,
     project: {
         // (2)
-        link: 'https://github.com/alpha3002025/green-nextra-markdown-editor',
+        link: SITE_CONFIG.github,
     },
     // (2)
-    docsRepositoryBase: 'https://github.com/alpha3002025/green-nextra-markdown-editor',
+    docsRepositoryBase: SITE_CONFIG.github,
     footer: {
-        text: 'Vue-like Docs Style',
+        text: SITE_CONFIG.footerText,
     },
     head: (
         <>
             <link rel="icon" type="image/png" href="/favicon.png" />
             <meta name="viewport" content="width=device-width, initial-scale=1.0" />
             {/* (1) */}
-            <meta property="og:title" content="Vue-like Docs" />
+            <meta property="og:title" content={SITE_CONFIG.title} />
         </>
     ),
     useNextSeoProps() {
         return {
-            titleTemplate: '%s – Vue-like Docs'
+            titleTemplate: `%s – ${SITE_CONFIG.title}`
         }
     },
     sidebar: {
