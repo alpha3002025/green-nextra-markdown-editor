@@ -5,15 +5,14 @@ rsync -av --delete upstream/src/components/ src/components/
 rsync -av --delete upstream/src/styles/ src/styles/
 rsync -av --delete upstream/src/pages/admin/ src/pages/admin/
 rsync -av --delete upstream/src/pages/api/ src/pages/api/
-rsync -av --delete upstream/src/pages/api/ src/pages/_app.tsx
-rsync -av --delete upstream/src/pages/api/ src/pages/_document.tsx
+cp upstream/src/pages/_app.tsx src/pages/_app.tsx
+cp upstream/src/pages/_document.tsx src/pages/_document.tsx
 
 
 ## Copy files from upstream (environment)
 cp -a upstream/package.json package.json
 cp -a upstream/package-lock.json package-lock.json 
 cp -a upstream/next.config.js next.config.js
-cp -a upstream/eslint.config.mjs eslint.config.mjs
 cp -a upstream/theme.config.tsx theme.config.tsx
 cp -a upstream/site.config.js site.config.js
 cp -a upstream/copy-images.js copy-images.js

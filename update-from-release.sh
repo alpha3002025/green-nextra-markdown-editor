@@ -60,7 +60,6 @@ cp -a "$SOURCE_DIR/package.json" package.json
 cp -a "$SOURCE_DIR/package-lock.json" package-lock.json 
 cp -a "$SOURCE_DIR/next.config.js" next.config.js
 cp -a "$SOURCE_DIR/.gitignore" .gitignore
-cp -a "$SOURCE_DIR/tsconfig.json" tsconfig.json
 
 # 3. 정적 리소스 복사 (public 폴더)
 rsync -av --delete "$SOURCE_DIR/public/" public/

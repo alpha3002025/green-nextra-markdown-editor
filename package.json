@@ -46,5 +46,8 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "typescript": "^5"
+  },
+  "overrides": {
+    "next-mdx-remote": "6.0.0"
   }
 }
