@@ -15,6 +15,7 @@ import { SITE_CONFIG } from '../../site.config';
 // Standard SVG paths for icons
 const COPY_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
 const CHECK_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#42b883" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+const AT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>`;
 
 function Toast({ message }: { message: string }) {
   if (!message) return null;
@@ -512,96 +513,133 @@ function BreadcrumbEnhancer() {
     const enhance = () => {
       // Find the breadcrumb container - Nextra structure varies
       const breadcrumbList = document.querySelector('.nextra-breadcrumb ul, nav[aria-label="breadcrumb"] ol');
-
-      // Fallback: Try finding the container directly if list not found
       const breadcrumbContainer = breadcrumbList || document.querySelector('.nextra-breadcrumb');
 
       if (breadcrumbContainer) {
-        // Remove existing button if it's attached anywhere nearby (to prevent duplicates and update path)
+        // Remove existing buttons
         const existingBtn = document.querySelector('.bc-copy-btn');
         if (existingBtn) existingBtn.remove();
+        const existingAtBtn = document.querySelector('.bc-at-copy-btn');
+        if (existingAtBtn) existingAtBtn.remove();
 
-        const btn = document.createElement('button');
-        btn.className = 'bc-copy-btn';
-        btn.innerHTML = COPY_ICON;
-        btn.style.background = 'transparent';
-        btn.style.border = 'none';
-        btn.style.cursor = 'pointer';
-        btn.style.marginLeft = '8px';
-        btn.style.padding = '4px';
-        btn.style.color = '#aaa';
-        btn.style.borderRadius = '4px';
-        btn.style.display = 'inline-flex';
-        btn.style.alignItems = 'center';
-        btn.title = 'Copy relative path';
-        btn.style.transition = 'all 0.2s';
+        // Helper to find real path
+        let realFilePath = '';
+        // Try to find the "Edit this page" link which contains the full path
+        const editLinks = document.querySelectorAll('a');
+        for (let i = 0; i < editLinks.length; i++) {
+          const href = editLinks[i].getAttribute('href');
+          if (href && (href.includes(SITE_CONFIG.github + '/blob/') || href.includes(SITE_CONFIG.github + '/tree/'))) {
+            // Extract path after /blob/<branch>/ or /tree/<branch>/
+            const match = href.match(new RegExp(`${SITE_CONFIG.github}/(blob|tree)/[^/]+/(.+)`));
+            if (match && match[2]) {
+              realFilePath = match[2];
+              break;
+            }
+          }
+        }
 
-        // Ensure it doesn't shrink
-        btn.style.flexShrink = '0';
-
-        btn.onmouseenter = () => {
-          btn.style.color = '#42b883';
-          btn.style.backgroundColor = 'rgba(66, 184, 131, 0.1)';
-        };
-        btn.onmouseleave = () => {
-          btn.style.color = '#aaa';
-          btn.style.backgroundColor = 'transparent';
-        };
-
-        btn.onclick = (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-
-          // Use router.asPath directly
+        // Fallback if edit link not found (e.g. local dev, hidden edit link)
+        if (!realFilePath) {
           let path = router.asPath.split('?')[0].split('#')[0];
-
-          // Decode URI component to handle Korean/Special chars
+          // Remove basePath if present in path (for GitHub Pages deployed)
+          const basePath = SITE_CONFIG.basePath || '';
+          if (basePath && path.startsWith(basePath)) {
+            path = path.substring(basePath.length);
+          }
           path = decodeURIComponent(path);
-
-          // Remove leading slash
           path = path.replace(/^\//, '');
+          if (!path || path === '/') path = 'index';
 
-          if (!path) path = 'index';
+          // Default assumption
+          realFilePath = `src/pages/${path}.md`;
+        }
 
-          navigator.clipboard.writeText(path).then(() => {
-            btn.innerHTML = CHECK_ICON;
-            window.dispatchEvent(new CustomEvent('show-viewer-toast', { detail: 'Path copied: ' + path }));
+        const createBtn = (className: string, icon: string, title: string, onClick: (btn: HTMLButtonElement) => void) => {
+          const btn = document.createElement('button');
+          btn.className = className;
+          btn.innerHTML = icon;
+          btn.style.background = 'transparent';
+          btn.style.border = 'none';
+          btn.style.cursor = 'pointer';
+          btn.style.marginLeft = '4px';
+          btn.style.padding = '4px';
+          btn.style.color = '#aaa';
+          btn.style.borderRadius = '4px';
+          btn.style.display = 'inline-flex';
+          btn.style.alignItems = 'center';
+          btn.title = title;
+          btn.style.transition = 'all 0.2s';
+          btn.style.flexShrink = '0';
+
+          btn.onmouseenter = () => {
+            btn.style.color = '#42b883';
+            btn.style.backgroundColor = 'rgba(66, 184, 131, 0.1)';
+          };
+          btn.onmouseleave = () => {
+            btn.style.color = '#aaa';
+            btn.style.backgroundColor = 'transparent';
+          };
+
+          btn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onClick(btn);
+          };
+          return btn;
+        };
+
+        // 1. Standard Relative Path Button -> Copies "src/pages/foo.mdx"
+        const btn = createBtn('bc-copy-btn', COPY_ICON, 'Copy file path', (b) => {
+          navigator.clipboard.writeText(realFilePath).then(() => {
+            b.innerHTML = CHECK_ICON;
+            window.dispatchEvent(new CustomEvent('show-viewer-toast', { detail: 'Path copied: ' + realFilePath }));
             setTimeout(() => {
-              btn.innerHTML = COPY_ICON;
+              b.innerHTML = COPY_ICON;
             }, 2000);
           });
-        };
+        });
 
-        // Append logic: Find the best place to put it.
-        // If it's a list (ul/ol), we usually want it AFTER the list, inside the nav wrapper.
+        // 2. @File Path Button (for CLI) -> Copies "@src/pages/foo.mdx"
+        const atBtn = createBtn('bc-at-copy-btn', AT_ICON, 'Copy @path for CLI', (b) => {
+          const cliPath = `@${realFilePath}`;
+
+          navigator.clipboard.writeText(cliPath).then(() => {
+            b.innerHTML = CHECK_ICON;
+            window.dispatchEvent(new CustomEvent('show-viewer-toast', { detail: 'Copied: ' + cliPath }));
+            setTimeout(() => {
+              b.innerHTML = AT_ICON;
+            }, 2000);
+          });
+        });
+
+        // Append buttons
         if ((breadcrumbContainer.tagName === 'UL' || breadcrumbContainer.tagName === 'OL') && breadcrumbContainer.parentElement) {
-          // Make sure parent is flex to align them
           const parent = breadcrumbContainer.parentElement;
           if (window.getComputedStyle(parent).display !== 'flex') {
             parent.style.display = 'flex';
             parent.style.alignItems = 'center';
           }
           parent.appendChild(btn);
+          parent.appendChild(atBtn);
         } else {
-          // If it's just a div or nav, append directly
           breadcrumbContainer.appendChild(btn);
+          breadcrumbContainer.appendChild(atBtn);
         }
       }
     };
 
     if (typeof document !== 'undefined') {
-      // Run immediately and after short delays to catch render updates
       enhance();
-      setTimeout(enhance, 200);
-      setTimeout(enhance, 500);
+      setTimeout(enhance, 500); // Wait for potential edit link rendering
+      setTimeout(enhance, 1500);
 
       const observer = new MutationObserver(() => {
+        // Re-run if buttons are missing (e.g. client-side nav)
         if (!document.querySelector('.bc-copy-btn')) {
           enhance();
         }
       });
       observer.observe(document.body, { childList: true, subtree: true });
-
       return () => observer.disconnect();
     }
   }, [router.asPath]);

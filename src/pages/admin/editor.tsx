@@ -8,7 +8,7 @@ import {
     Bold, Italic, Heading1, Heading2, List, ListOrdered,
     Quote, Link as LinkIcon, Image as ImageIcon, Code, Strikethrough, Braces,
     FileText, Menu, ChevronLeft, ChevronRight, ChevronDown, Save, Plus, Copy, X, ArrowLeft, Folder, FolderOpen,
-    Trash, Recycle, Edit2, Check
+    Trash, Recycle, Edit2, Check, AtSign
 } from 'lucide-react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism'
@@ -166,11 +166,12 @@ const FileTreeItem = ({
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isFlashing, setIsFlashing] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
     const itemRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const isTarget = revealPath?.path === node.path ||
-            (node.type === 'file' && revealPath && (node.path === revealPath.path + '.md' || node.path === revealPath.path + '.mdx'));
+            (node.type === 'file' && revealPath && (revealPath.path === node.path || revealPath.path + '.md' === node.path || revealPath.path + '.mdx' === node.path));
 
         const isParent = revealPath && revealPath.path.startsWith(node.path + '/');
 
@@ -198,8 +199,6 @@ const FileTreeItem = ({
             setIsOpen(!isOpen);
         } else if (node.slug) {
             // Only load post if standard click (not multi-select operation)
-            // But usually we want to see what we click.
-            // Let's load only if single click without modifiers?
             if (!isMulti && !isListSelect) onLoadPost(node.slug);
         }
     }
@@ -245,6 +244,21 @@ const FileTreeItem = ({
     if (dragState === 'bottom') borderStyle = { borderBottom: '2px solid #42b883' };
     if (dragState === 'inside') borderStyle = { backgroundColor: 'rgba(66, 184, 131, 0.2)' };
 
+    const handleCliCopy = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        // Construct path: @src/pages/PATH.md (if file)
+        let cliPath = `@src/pages/${node.path}`;
+
+        // If file and no extension, add .md? Actually node.path for file usually has extension.
+        // If directory, just path.
+        // Actually, if it's a file, we want the file extension.
+        // But for consistency let's just use node.path as it is from FS loop.
+
+        navigator.clipboard.writeText(cliPath).then(() => {
+            window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Copied: ' + cliPath }));
+        });
+    };
+
     return (
         <div>
             <div
@@ -254,6 +268,8 @@ const FileTreeItem = ({
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
                 className={styles.postItem}
                 style={{
                     paddingLeft: `${1 + level * 0.8}rem`,
@@ -262,6 +278,8 @@ const FileTreeItem = ({
                     color: (isActive || isSelected) ? '#42b883' : 'inherit',
                     fontWeight: (isActive || isSelected) ? 600 : 400,
                     transition: isFlashing ? 'background-color 0.5s' : 'all 0.1s',
+                    display: 'flex',
+                    alignItems: 'center',
                     ...borderStyle
                 }}
                 onClick={handleClick}
@@ -275,7 +293,29 @@ const FileTreeItem = ({
                 ) : (
                     <FileText size={16} />
                 )}
-                <span style={{ marginLeft: 8 }}>{node.name}</span>
+                <span style={{ marginLeft: 8, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</span>
+
+                {/* @ Copy Button */}
+                <button
+                    onClick={handleCliCopy}
+                    style={{
+                        opacity: isHovered ? 1 : 0,
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '2px',
+                        marginLeft: '4px',
+                        color: '#aaa',
+                        transition: 'opacity 0.2s',
+                        display: 'flex',
+                        alignItems: 'center'
+                    }}
+                    title="Copy path for CLI"
+                    onMouseEnter={(e) => e.currentTarget.style.color = '#42b883'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = '#aaa'}
+                >
+                    <AtSign size={14} />
+                </button>
             </div>
             {node.type === 'directory' && isOpen && node.children && (
                 <div>
@@ -1629,13 +1669,53 @@ export default function Editor() {
                                     className={styles.toggleBtn}
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        navigator.clipboard.writeText(currentPost);
-                                        window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Path copied to clipboard' }));
+                                        const findNode = (nodes: FileNode[], slug: string): string | null => {
+                                            for (const node of nodes) {
+                                                if (node.slug === slug || node.path === slug) return node.path;
+                                                if (node.children) {
+                                                    const found = findNode(node.children, slug);
+                                                    if (found) return found;
+                                                }
+                                            }
+                                            return null;
+                                        };
+                                        let path = findNode(posts, currentPost) || currentPost;
+                                        if (currentPost === 'home' && (!path || path === 'home')) path = 'index.mdx';
+
+                                        const fullPath = `src/pages/${path}`;
+                                        navigator.clipboard.writeText(fullPath);
+                                        window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Path copied: ' + fullPath }));
                                     }}
-                                    title="Copy relative path"
+                                    title="Copy file path"
                                     style={{ marginLeft: '0.25rem' }}
                                 >
                                     <Copy size={16} />
+                                </button>
+                                <button
+                                    className={styles.toggleBtn}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        const findNode = (nodes: FileNode[], slug: string): string | null => {
+                                            for (const node of nodes) {
+                                                if (node.slug === slug || node.path === slug) return node.path;
+                                                if (node.children) {
+                                                    const found = findNode(node.children, slug);
+                                                    if (found) return found;
+                                                }
+                                            }
+                                            return null;
+                                        };
+                                        let path = findNode(posts, currentPost) || currentPost;
+                                        if (currentPost === 'home' && (!path || path === 'home')) path = 'index.mdx';
+
+                                        const cliPath = `@src/pages/${path}`;
+                                        navigator.clipboard.writeText(cliPath);
+                                        window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Copied: ' + cliPath }));
+                                    }}
+                                    title="Copy path for CLI"
+                                    style={{ marginLeft: '0.25rem' }}
+                                >
+                                    <AtSign size={16} />
                                 </button>
                             </>
                         )}
