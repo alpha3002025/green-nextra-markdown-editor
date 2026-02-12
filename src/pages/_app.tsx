@@ -271,86 +271,124 @@ function CodeBlockEnhancer() {
   return null;
 }
 
+// Global Tooltip Enhancer (Replaces inline button injection)
 function CopyTokenEnhancer() {
   const router = useRouter();
 
   useEffect(() => {
-    const enhance = () => {
-      // Target inline code elements
-      document.querySelectorAll('code').forEach((code) => {
-        // Skip if inside pre (Code Block)
-        if (code.closest('pre')) return;
-        // Skip if already processed
-        if (code.getAttribute('data-inline-copy')) return;
-        // Skip if it looks like a wrapper or internal element
-        if (code.closest('.inline-copy-btn')) return;
+    // Single global tooltip element
+    let tooltip: HTMLElement | null = null;
+    let currentTarget: HTMLElement | null = null;
+    let hideTimer: NodeJS.Timeout | null = null;
 
-        code.setAttribute('data-inline-copy', 'true');
+    const createTooltip = () => {
+      const el = document.createElement('div');
+      el.className = 'inline-copy-tooltip hidden';
+      el.innerText = 'Copy';
+      document.body.appendChild(el);
 
-        // Force relative position for anchoring
-        // We use classList to avoid overwriting style attribute if possible, 
-        // but inline style is safest for immediate effect without CSS conflicts.
-        code.style.position = 'relative';
-
-        // Create Text Button
-        const btn = document.createElement('button');
-        btn.className = 'inline-copy-btn';
-        btn.textContent = 'Copy';
-        // Prevent button text from being selected/copied by user selection
-        btn.style.userSelect = 'none';
-        btn.contentEditable = 'false'; // Ensure it doesn't interfere with editing if any
-
-        btn.onclick = (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-
-          // Extract text only (exclude button)
-          // Clone node to safely remove children without affecting DOM
-          const clone = code.cloneNode(true) as HTMLElement;
-          const buttons = clone.querySelectorAll('button');
-          buttons.forEach(b => b.remove());
-          const text = clone.textContent || '';
-
+      // Cleanup on click (copy action)
+      el.addEventListener('click', (e) => {
+        e.stopPropagation(); // prevent document click handling if any
+        if (currentTarget) {
+          const text = currentTarget.textContent || '';
           navigator.clipboard.writeText(text).then(() => {
-            btn.textContent = 'Copied!';
-            btn.classList.add('copied');
+            el.innerText = 'Copied!';
+            el.classList.add('copied');
             window.dispatchEvent(new CustomEvent('show-viewer-toast', { detail: 'Copied to clipboard' }));
+
+            // Reset text after delay
             setTimeout(() => {
-              btn.textContent = 'Copy';
-              btn.classList.remove('copied');
-            }, 2000);
-          });
-        };
-
-        code.appendChild(btn);
-      });
-    };
-
-    const observer = new MutationObserver((mutations) => {
-      let shouldProcess = false;
-      mutations.forEach(m => {
-        if (m.type === 'childList') {
-          m.addedNodes.forEach(n => {
-            if (n.nodeType === Node.ELEMENT_NODE) {
-              const el = n as Element;
-              // Check if potentially contains code or is code
-              // Avoid reacting to our own button additions
-              if ((el.tagName === 'CODE' || el.querySelector('code')) && !el.classList.contains('inline-copy-btn')) {
-                shouldProcess = true;
+              if (el) {
+                el.innerText = 'Copy';
+                el.classList.remove('copied');
               }
-            }
+            }, 2000);
           });
         }
       });
-      if (shouldProcess) setTimeout(enhance, 100);
-    });
 
-    if (typeof document !== 'undefined') {
-      enhance();
-      observer.observe(document.body, { childList: true, subtree: true });
-    }
-    return () => observer.disconnect();
-  }, [router.asPath]);
+      // Keep tooltip alive when hovering tooltip itself
+      el.addEventListener('mouseenter', () => {
+        if (hideTimer) clearTimeout(hideTimer);
+      });
+
+      el.addEventListener('mouseleave', () => {
+        hideTooltip();
+      });
+
+      return el;
+    };
+
+    const showTooltip = (target: HTMLElement) => {
+      if (!tooltip) tooltip = createTooltip();
+      if (hideTimer) clearTimeout(hideTimer);
+
+      currentTarget = target;
+
+      // Position Logic
+      const rect = target.getBoundingClientRect();
+      const tooltipRect = tooltip.getBoundingClientRect(); // will be 0 if hidden? remove hidden first to measure?
+
+      // We need to show it to measure it correctly, or assume dimensions
+      tooltip.classList.remove('hidden');
+
+      // Calculate center top
+      const top = rect.top - 30; // 30px above
+      const left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2);
+
+      tooltip.style.top = `${top + window.scrollY}px`; // handle scroll if body is relative, usually fixed is viewport relative
+      // actually if it is fixed position:
+      tooltip.style.top = `${top}px`;
+      tooltip.style.left = `${left}px`;
+    };
+
+    const hideTooltip = () => {
+      hideTimer = setTimeout(() => {
+        if (tooltip) {
+          tooltip.classList.add('hidden');
+          // Don't fully remove, just hide
+        }
+        currentTarget = null;
+      }, 100); // short delay for bridge
+    };
+
+    const handleMouseOver = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+
+      // Check if target is a code element (inline) or inside one
+      const codeEl = target.tagName === 'CODE' ? target : target.closest('code');
+
+      if (codeEl) {
+        // Ignore full code blocks (inside pre)
+        if (codeEl.closest('pre')) return;
+        // Ignore if it's part of our UI (though tooltip is fixed/outside)
+
+        // Show tooltip
+        showTooltip(codeEl as HTMLElement);
+      }
+    };
+
+    const handleMouseOut = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const codeEl = target.tagName === 'CODE' ? target : target.closest('code');
+
+      if (codeEl && !codeEl.closest('pre')) {
+        // If moving into the tooltip, logic handled by tooltip mouseenter
+        // We set a hide timer
+        hideTooltip();
+      }
+    };
+
+    document.addEventListener('mouseover', handleMouseOver);
+    document.addEventListener('mouseout', handleMouseOut);
+
+    return () => {
+      document.removeEventListener('mouseover', handleMouseOver);
+      document.removeEventListener('mouseout', handleMouseOut);
+      if (tooltip) tooltip.remove();
+    };
+  }, [router.asPath]); // Re-bind on navigation if needed (though document listener persists, cleanup is good)
 
   return null;
 }

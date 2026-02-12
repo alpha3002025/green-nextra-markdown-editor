@@ -495,7 +495,7 @@ export default function Editor() {
     const [activeHeaderId, setActiveHeaderId] = useState<string | null>(null);
 
     // Drag & Drop / Context Menu States
-    const [contextMenu, setContextMenu] = useState<{ x: number, y: number, node: FileNode } | null>(null);
+    const [contextMenu, setContextMenu] = useState<{ x: number, y: number, node: FileNode, align?: 'top' | 'bottom' } | null>(null);
     const [draggedNode, setDraggedNode] = useState<FileNode | null>(null);
     const [draggedHeaderIndex, setDraggedHeaderIndex] = useState<number | null>(null);
     const [dragOverHeaderIndex, setDragOverHeaderIndex] = useState<number | null>(null);
@@ -1137,7 +1137,10 @@ export default function Editor() {
     const handleContextMenu = (e: React.MouseEvent, node: FileNode) => {
         e.preventDefault();
         e.stopPropagation();
-        setContextMenu({ x: e.clientX, y: e.clientY, node });
+
+        const menuHeight = 220; // Estimated height
+        const align = (e.clientY + menuHeight > window.innerHeight) ? 'bottom' : 'top';
+        setContextMenu({ x: e.clientX, y: e.clientY, node, align });
     };
 
     const handleMetaAction = async () => {
@@ -1565,7 +1568,14 @@ export default function Editor() {
 
             {/* Context Menu */}
             {contextMenu && (
-                <div className={styles.contextMenu} style={{ top: contextMenu.y, left: contextMenu.x }}>
+                <div
+                    className={styles.contextMenu}
+                    style={{
+                        top: contextMenu.align === 'bottom' ? 'auto' : contextMenu.y,
+                        bottom: contextMenu.align === 'bottom' ? (window.innerHeight - contextMenu.y) : 'auto',
+                        left: contextMenu.x
+                    }}
+                >
                     <div className={styles.contextMenuHeader}>{contextMenu.node.name || 'Root'}</div>
                     <div className={styles.contextMenuItem} onClick={() => handleFSAction('new_file')}><FileText size={14} /> New File</div>
                     <div className={styles.contextMenuItem} onClick={() => handleFSAction('new_folder')}><Plus size={14} /> New Folder</div>
