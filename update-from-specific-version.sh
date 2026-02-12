@@ -64,11 +64,15 @@ rsync -av --delete "$SOURCE_DIR/src/pages/admin/" src/pages/admin/
 rsync -av --delete "$SOURCE_DIR/src/pages/api/" src/pages/api/
 rsync -av --delete "$SOURCE_DIR/src/pages/_app.tsx" src/pages/_app.tsx
 rsync -av --delete "$SOURCE_DIR/src/pages/_document.tsx" src/pages/_document.tsx
-
 # 2. 환경 설정 파일 복사
 cp -a "$SOURCE_DIR/package.json" package.json
 cp -a "$SOURCE_DIR/package-lock.json" package-lock.json 
 cp -a "$SOURCE_DIR/next.config.js" next.config.js
+cp -a "$SOURCE_DIR/.gitignore" .gitignore
+cp -a "$SOURCE_DIR/tsconfig.json" tsconfig.json
+
+# 3. 정적 리소스 복사 (public 폴더)
+rsync -av --delete "$SOURCE_DIR/public/" public/
 if [ -f "$SOURCE_DIR/eslint.config.mjs" ]; then
     cp -a "$SOURCE_DIR/eslint.config.mjs" eslint.config.mjs
 fi

@@ -55,11 +55,15 @@ rsync -av --delete "$SOURCE_DIR/src/pages/api/" src/pages/api/
 rsync -av --delete "$SOURCE_DIR/src/pages/_app.tsx" src/pages/_app.tsx
 rsync -av --delete "$SOURCE_DIR/src/pages/_document.tsx" src/pages/_document.tsx
 
-
 # 2. 환경 설정 파일 복사
 cp -a "$SOURCE_DIR/package.json" package.json
 cp -a "$SOURCE_DIR/package-lock.json" package-lock.json 
 cp -a "$SOURCE_DIR/next.config.js" next.config.js
+cp -a "$SOURCE_DIR/.gitignore" .gitignore
+cp -a "$SOURCE_DIR/tsconfig.json" tsconfig.json
+
+# 3. 정적 리소스 복사 (public 폴더)
+rsync -av --delete "$SOURCE_DIR/public/" public/
 # eslint.config.mjs 파일이 존재할 경우에만 복사
 if [ -f "$SOURCE_DIR/eslint.config.mjs" ]; then
     cp -a "$SOURCE_DIR/eslint.config.mjs" eslint.config.mjs
@@ -69,7 +73,7 @@ cp -a "$SOURCE_DIR/site.config.js" site.config.js
 cp -a "$SOURCE_DIR/copy-images.js" copy-images.js
 
 
-# 3. 릴리즈 업데이트 스크립트 복사
+# 4. 릴리즈 업데이트 스크립트 복사
 cp -a "$SOURCE_DIR/update-from-release.sh" update-from-release.sh
 if [ -f "$SOURCE_DIR/update-from-specific-version.sh" ]; then
     cp -a "$SOURCE_DIR/update-from-specific-version.sh" update-from-specific-version.sh
