@@ -1,5 +1,6 @@
 import "@/styles/globals.css";
 import "@/styles/theme.css";
+import 'nextra-theme-docs/style.css';
 import 'katex/dist/katex.min.css';
 
 import type { AppProps } from "next/app";
