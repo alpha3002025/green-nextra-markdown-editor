@@ -66,11 +66,14 @@ if [ -f "$SOURCE_DIR/eslint.config.mjs" ]; then
 fi
 cp -a "$SOURCE_DIR/theme.config.tsx" theme.config.tsx
 cp -a "$SOURCE_DIR/site.config.js" site.config.js
+cp -a "$SOURCE_DIR/copy-images.js" copy-images.js
 
 
 # 3. 릴리즈 업데이트 스크립트 복사
 cp -a "$SOURCE_DIR/update-from-release.sh" update-from-release.sh
-cp -a "$SOURCE_DIR/update-from-specific-release.sh" update-from-specific-release.sh
+if [ -f "$SOURCE_DIR/update-from-specific-version.sh" ]; then
+    cp -a "$SOURCE_DIR/update-from-specific-version.sh" update-from-specific-version.sh
+fi
 cp -a "$SOURCE_DIR/patch-upstream.sh" patch-upstream.sh
 
 

@@ -1,8 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const srcDir = path.join(__dirname, '../src/pages');
-const outDir = path.join(__dirname, '../out');
+const srcDir = path.join(__dirname, 'src/pages');
+const outDir = path.join(__dirname, 'out');
 
 function copyDir(src, dest) {
     if (!fs.existsSync(dest)) {
