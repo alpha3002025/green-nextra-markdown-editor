@@ -65,6 +65,7 @@ if [ -f "$SOURCE_DIR/eslint.config.mjs" ]; then
     cp -a "$SOURCE_DIR/eslint.config.mjs" eslint.config.mjs
 fi
 cp -a "$SOURCE_DIR/theme.config.tsx" theme.config.tsx
+cp -a "$SOURCE_DIR/site.config.js" site.config.js
 
 
 # 3. 릴리즈 업데이트 스크립트 복사
