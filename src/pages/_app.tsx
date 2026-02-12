@@ -320,25 +320,39 @@ function CopyTokenEnhancer() {
       return el;
     };
 
+    const handleScroll = () => {
+      if (currentTarget) showTooltip(currentTarget);
+      else if (tooltip) hideTooltip();
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
     const showTooltip = (target: HTMLElement) => {
       if (!tooltip) tooltip = createTooltip();
       if (hideTimer) clearTimeout(hideTimer);
 
       currentTarget = target;
 
-      // Position Logic
+      // Position Logic (Fixed Position)
       const rect = target.getBoundingClientRect();
-      const tooltipRect = tooltip.getBoundingClientRect(); // will be 0 if hidden? remove hidden first to measure?
 
-      // We need to show it to measure it correctly, or assume dimensions
+      // We need to show it to measure it correctly
       tooltip.classList.remove('hidden');
 
-      // Calculate center top
-      const top = rect.top - 30; // 30px above
-      const left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2);
+      // Measure Tooltip
+      const tooltipWidth = tooltip.offsetWidth;
+      const tooltipHeight = tooltip.offsetHeight;
 
-      tooltip.style.top = `${top + window.scrollY}px`; // handle scroll if body is relative, usually fixed is viewport relative
-      // actually if it is fixed position:
+      // Calculate center top
+      // rect.top is relative to viewport (perfect for fixed)
+      let top = rect.top - tooltipHeight - 8; // 8px spacing
+      let left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
+
+      // Prevent going off screen
+      if (top < 0) top = rect.bottom + 8; // Flip to bottom if no space on top
+      if (left < 0) left = 10;
+      if (left + tooltipWidth > window.innerWidth) left = window.innerWidth - tooltipWidth - 10;
+
       tooltip.style.top = `${top}px`;
       tooltip.style.left = `${left}px`;
     };
@@ -347,24 +361,17 @@ function CopyTokenEnhancer() {
       hideTimer = setTimeout(() => {
         if (tooltip) {
           tooltip.classList.add('hidden');
-          // Don't fully remove, just hide
         }
         currentTarget = null;
-      }, 100); // short delay for bridge
+      }, 100);
     };
 
     const handleMouseOver = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-
-      // Check if target is a code element (inline) or inside one
       const codeEl = target.tagName === 'CODE' ? target : target.closest('code');
 
       if (codeEl) {
-        // Ignore full code blocks (inside pre)
         if (codeEl.closest('pre')) return;
-        // Ignore if it's part of our UI (though tooltip is fixed/outside)
-
-        // Show tooltip
         showTooltip(codeEl as HTMLElement);
       }
     };
@@ -372,10 +379,8 @@ function CopyTokenEnhancer() {
     const handleMouseOut = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       const codeEl = target.tagName === 'CODE' ? target : target.closest('code');
-
       if (codeEl && !codeEl.closest('pre')) {
-        // If moving into the tooltip, logic handled by tooltip mouseenter
-        // We set a hide timer
+        // Logic to check if we moved to tooltip is handled by tooltip's mouseenter
         hideTooltip();
       }
     };

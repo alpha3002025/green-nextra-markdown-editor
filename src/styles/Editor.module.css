@@ -416,7 +416,9 @@
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #ccc;
     border-radius: 4px;
-    padding: 4px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
     cursor: pointer;
     z-index: 20;
     opacity: 0;

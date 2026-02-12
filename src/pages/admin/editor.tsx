@@ -8,7 +8,7 @@ import {
     Bold, Italic, Heading1, Heading2, List, ListOrdered,
     Quote, Link as LinkIcon, Image as ImageIcon, Code, Strikethrough, Braces,
     FileText, Menu, ChevronLeft, ChevronRight, ChevronDown, Save, Plus, Copy, X, ArrowLeft, Folder, FolderOpen,
-    Trash, Recycle, Edit2, Check, AtSign
+    Trash, Recycle, Edit2, Check, AtSign, ChevronsDown, ChevronsUp
 } from 'lucide-react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism'
@@ -67,9 +67,7 @@ function CodeBlock({ language, value }: { language: string, value: string }) {
             onKeyDown={handleKeyDown}
             style={{ outline: 'none' }} // Avoid default outline, keydown handles selection
         >
-            {!copied ? (
-                <div className={styles.codeBlockHeader}>{language}</div>
-            ) : null}
+            <div className={styles.codeBlockHeader}>{language}</div>
             <button className={styles.copyBtn} onClick={handleCopy} title="Copy code">
                 {copied ? <div style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>✓</div> : <Copy size={16} />}
             </button>
@@ -149,7 +147,8 @@ const FileTreeItem = ({
     onDragOver,
     onDrop,
     onDragLeave,
-    revealPath
+    revealPath,
+    explorerExpandTrigger
 }: {
     node: FileNode,
     level: number,
@@ -162,12 +161,21 @@ const FileTreeItem = ({
     onDragOver: (e: React.DragEvent, node: FileNode) => void,
     onDrop: (e: React.DragEvent, node: FileNode) => void,
     onDragLeave: (e: React.DragEvent) => void,
-    revealPath?: { path: string, ts: number } | null
+    revealPath?: { path: string, ts: number } | null,
+    explorerExpandTrigger?: { action: 'expand' | 'collapse', ts: number } | null
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isFlashing, setIsFlashing] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const itemRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (explorerExpandTrigger) {
+            if (node.type === 'directory') {
+                setIsOpen(explorerExpandTrigger.action === 'expand');
+            }
+        }
+    }, [explorerExpandTrigger, node.type]);
 
     useEffect(() => {
         const isTarget = revealPath?.path === node.path ||
@@ -316,6 +324,37 @@ const FileTreeItem = ({
                 >
                     <AtSign size={14} />
                 </button>
+                {process.env.NODE_ENV === 'development' && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            let path = node.path.replace(/\.(md|mdx)$/, '');
+                            if (path === 'index') path = '';
+                            if (path.endsWith('/index')) path = path.replace(/\/index$/, '');
+                            if (!path.startsWith('/')) path = '/' + path;
+
+                            navigator.clipboard.writeText(path);
+                            window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Copied link: ' + path }));
+                        }}
+                        style={{
+                            opacity: isHovered ? 1 : 0,
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            padding: '2px',
+                            marginLeft: '2px',
+                            color: '#aaa',
+                            transition: 'opacity 0.2s',
+                            display: 'flex',
+                            alignItems: 'center'
+                        }}
+                        title="Copy Link Path"
+                        onMouseEnter={(e) => e.currentTarget.style.color = '#42b883'}
+                        onMouseLeave={(e) => e.currentTarget.style.color = '#aaa'}
+                    >
+                        <LinkIcon size={14} />
+                    </button>
+                )}
             </div>
             {node.type === 'directory' && isOpen && node.children && (
                 <div>
@@ -334,6 +373,7 @@ const FileTreeItem = ({
                             onDrop={onDrop}
                             onDragLeave={onDragLeave}
                             revealPath={revealPath}
+                            explorerExpandTrigger={explorerExpandTrigger}
                         />
                     ))}
                 </div>
@@ -483,6 +523,7 @@ export default function Editor() {
     // Layout States
     const [tocWidth, setTocWidth] = useState(250);
     const [isResizing, setIsResizing] = useState(false);
+    const [explorerExpandTrigger, setExplorerExpandTrigger] = useState<{ action: 'expand' | 'collapse', ts: number } | null>(null);
     const [sidebarWidth, setSidebarWidth] = useState(260);
     const [isSidebarResizing, setIsSidebarResizing] = useState(false);
     const [editorRatio, setEditorRatio] = useState(0.5);
@@ -1260,20 +1301,20 @@ export default function Editor() {
                     });
                     const metaPath = parent ? `${parent}/_meta.json` : '_meta.json';
                     if (currentPost === metaPath || currentPost === `/${metaPath}`) setTimeout(() => loadPost(metaPath), 300);
-                } catch { }
-
-                await fetchPosts();
-                if (currentPost && (currentPost === node.path || currentPost.startsWith(node.path + '/'))) {
-                    const suffix = currentPost.substring(node.path.length);
-                    const newCurrentPost = newPath + suffix;
-                    setCurrentPost(newCurrentPost);
-                    router.replace({ query: { ...router.query, open: newCurrentPost } }, undefined, { shallow: true });
-                    setTimeout(() => loadPost(newCurrentPost), 100);
+                    await fetchPosts();
+                    if (currentPost && (currentPost === node.path || currentPost.startsWith(node.path + '/'))) {
+                        const suffix = currentPost.substring(node.path.length);
+                        const newCurrentPost = newPath + suffix;
+                        setCurrentPost(newCurrentPost);
+                        router.replace({ query: { ...router.query, open: newCurrentPost } }, undefined, { shallow: true });
+                    }
+                } catch (e) {
+                    console.error('Failed to update _meta.json during rename:', e);
+                    window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Rename successful, but failed to update _meta.json' }));
                 }
-
             } else if (action === 'delete') {
                 const targetPaths = selectedPaths.has(node.path) ? Array.from(selectedPaths) : [node.path];
-                const confirmed = await showConfirm(`Are you sure you want to delete ${targetPaths.length > 1 ? `${targetPaths.length} items` : node.name}?`);
+                const confirmed = await showConfirm(`Are you sure you want to delete ${targetPaths.length > 1 ? `${targetPaths.length} items` : node.name}? This will move it to trash.`);
                 if (!confirmed) return;
 
                 for (const p of targetPaths) {
@@ -1283,31 +1324,56 @@ export default function Editor() {
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ path: p })
                         });
-                        if (!res.ok) {
-                            console.error(`Failed to delete ${p}`);
-                            continue;
-                        }
 
-                        const parts = p.split('/');
-                        const name = parts.pop() || '';
-                        const parent = parts.join('/');
+                        if (res.ok) {
+                            const data = await res.json();
 
-                        const key = name.replace(/\.(md|mdx)$/, '');
-                        await fetch('/api/meta', {
-                            method: 'DELETE',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ folderPath: parent, key })
-                        });
-                        const metaPath = parent ? `${parent}/_meta.json` : '_meta.json';
-                        if (currentPost === metaPath || currentPost === `/${metaPath}`) setTimeout(() => loadPost(metaPath), 300);
+                            // Undo Toast Logic
+                            const undoToast = document.createElement('div');
+                            undoToast.className = styles.toast;
+                            undoToast.style.backgroundColor = '#333';
+                            undoToast.style.zIndex = '3000'; // Ensure on top
+                            undoToast.innerHTML = `
+                                <span>Deleted ${p.split('/').pop()}</span>
+                                <button style="margin-left: 10px; color: #42b883; font-weight: bold; background: none; border: none; cursor: pointer;">UNDO</button>
+                            `;
 
-                        const deletedPath = p.replace(/^\//, '');
-                        const current = currentPost ? currentPost.replace(/^\//, '') : '';
-                        if (current && (current === deletedPath || current.startsWith(deletedPath + '/'))) {
-                            setCurrentPost('');
-                            setEditorValue('');
-                            setContent('');
-                            router.push('/admin/editor', undefined, { shallow: true });
+                            const undoButton = undoToast.querySelector('button');
+                            if (undoButton) {
+                                undoButton.onclick = async () => {
+                                    // Restore API Call
+                                    try {
+                                        const restoreRes = await fetch('/api/fs', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ type: 'restore', trashId: data.trashId })
+                                        });
+                                        if (restoreRes.ok) {
+                                            window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Restored successfully' }));
+                                            await fetchPosts();
+                                            undoToast.remove();
+                                        } else {
+                                            alert('Failed to restore');
+                                        }
+                                    } catch (e) {
+                                        console.error('Restore error', e);
+                                    }
+                                };
+                            }
+
+                            document.body.appendChild(undoToast);
+                            setTimeout(() => {
+                                if (undoToast.parentNode) undoToast.remove();
+                            }, 5000); // 5 seconds to undo
+
+                            const deletedPath = p.replace(/^\//, '');
+                            const current = currentPost ? currentPost.replace(/^\//, '') : '';
+                            if (current && (current === deletedPath || current.startsWith(deletedPath + '/'))) {
+                                setCurrentPost(null);
+                                setEditorValue('');
+                                setContent('');
+                                router.push('/admin/editor', undefined, { shallow: true });
+                            }
                         }
                     } catch (e) {
                         console.error(e);
@@ -1315,8 +1381,7 @@ export default function Editor() {
                 }
 
                 await fetchPosts();
-                setSelectedPaths(new Set()); // Clear selection
-                // Check if current post is deleted? We might need to handle redirection if needed.
+                setSelectedPaths(new Set());
             } else if (action === 'duplicate') {
                 setIsDuplicating(true);
                 try {
@@ -1354,7 +1419,7 @@ export default function Editor() {
             await showAlert(e.message);
             setIsDuplicating(false);
         }
-    }
+    };
 
     const [isRenamingTitle, setIsRenamingTitle] = useState(false);
     const [renameValue, setRenameValue] = useState('');
@@ -1393,6 +1458,7 @@ export default function Editor() {
 
             // Try to update _meta.json if in same directory
             try {
+
                 const oldParts = currentPost.split('/');
                 const oldName = oldParts.pop() || '';
                 const oldParent = oldParts.join('/');
@@ -1540,9 +1606,31 @@ export default function Editor() {
                 }}
             >
                 <div className={styles.resizer} style={{ left: 'auto', right: 0 }} onMouseDown={startSidebarResizing} />
-                <div className={styles.sidebarHeader}>
-                    <FileText size={20} />
-                    <span>Explorer</span>
+                <div className={styles.sidebarHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <FileText size={20} />
+                        <span>Explorer</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                        <button
+                            onClick={() => setExplorerExpandTrigger({ action: 'collapse', ts: Date.now() })}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: '2px', display: 'flex' }}
+                            title="Collapse All"
+                            onMouseEnter={(e) => e.currentTarget.style.color = '#42b883'}
+                            onMouseLeave={(e) => e.currentTarget.style.color = '#666'}
+                        >
+                            <ChevronsUp size={16} />
+                        </button>
+                        <button
+                            onClick={() => setExplorerExpandTrigger({ action: 'expand', ts: Date.now() })}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: '2px', display: 'flex' }}
+                            title="Expand All"
+                            onMouseEnter={(e) => e.currentTarget.style.color = '#42b883'}
+                            onMouseLeave={(e) => e.currentTarget.style.color = '#666'}
+                        >
+                            <ChevronsDown size={16} />
+                        </button>
+                    </div>
                 </div>
                 <div className={styles.postList}>
                     {posts.map((node, i) => (
@@ -1560,6 +1648,7 @@ export default function Editor() {
                             onDrop={handleNodeDrop}
                             onDragLeave={handleNodeDragLeave}
                             revealPath={revealPath}
+                            explorerExpandTrigger={explorerExpandTrigger}
                         />
                     ))}
                     <div style={{ flex: 1, minHeight: '50px' }} onContextMenu={(e) => handleContextMenu(e, { name: 'Root', type: 'directory', path: '' } as FileNode)} />
@@ -1580,6 +1669,18 @@ export default function Editor() {
                     <div className={styles.contextMenuItem} onClick={() => handleFSAction('new_file')}><FileText size={14} /> New File</div>
                     <div className={styles.contextMenuItem} onClick={() => handleFSAction('new_folder')}><Plus size={14} /> New Folder</div>
                     <div className={styles.contextMenuItem} onClick={() => handleFSAction('duplicate')}><Copy size={14} /> Duplicate File</div>
+                    {process.env.NODE_ENV === 'development' && (
+                        <div className={styles.contextMenuItem} onClick={() => {
+                            let path = contextMenu.node.path.replace(/\.(md|mdx)$/, '');
+                            if (path === 'index') path = '';
+                            if (path.endsWith('/index')) path = path.replace(/\/index$/, '');
+                            if (!path.startsWith('/')) path = '/' + path;
+
+                            navigator.clipboard.writeText(path);
+                            setContextMenu(null);
+                            window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Copied link: ' + path }));
+                        }}><LinkIcon size={14} /> Copy Link Path</div>
+                    )}
                     {contextMenu.node.path !== '' && (
                         <>
                             <div className={styles.contextMenuDivider} />
@@ -1727,6 +1828,25 @@ export default function Editor() {
                                 >
                                     <AtSign size={16} />
                                 </button>
+                                {process.env.NODE_ENV === 'development' && (
+                                    <button
+                                        className={styles.toggleBtn}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            let path = currentPost.replace(/\.(md|mdx)$/, '');
+                                            if (path === 'index') path = '';
+                                            if (path.endsWith('/index')) path = path.replace(/\/index$/, '');
+                                            if (!path.startsWith('/')) path = '/' + path;
+
+                                            navigator.clipboard.writeText(path);
+                                            window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Copied link: ' + path }));
+                                        }}
+                                        title="Copy Link Path"
+                                        style={{ marginLeft: '0.25rem' }}
+                                    >
+                                        <LinkIcon size={16} />
+                                    </button>
+                                )}
                             </>
                         )}
                         <span className={styles.status}>{status}</span>
@@ -1921,7 +2041,34 @@ export default function Editor() {
 
                             <div className={styles.tocSidebar} style={{ width: tocWidth }}>
                                 <div className={styles.resizer} onMouseDown={startResizing} />
-                                <div className={styles.tocHeader}><List size={18} /><span>Outline</span></div>
+                                <div className={styles.tocHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <List size={18} /><span>Outline</span>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '4px' }}>
+                                        <button
+                                            onClick={() => {
+                                                const allIds = new Set(toc.map(t => t.id));
+                                                setCollapsedIds(allIds);
+                                            }}
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: '2px', display: 'flex' }}
+                                            title="Collapse All"
+                                            onMouseEnter={(e) => e.currentTarget.style.color = '#42b883'}
+                                            onMouseLeave={(e) => e.currentTarget.style.color = '#666'}
+                                        >
+                                            <ChevronsUp size={14} />
+                                        </button>
+                                        <button
+                                            onClick={() => setCollapsedIds(new Set())}
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: '2px', display: 'flex' }}
+                                            title="Expand All"
+                                            onMouseEnter={(e) => e.currentTarget.style.color = '#42b883'}
+                                            onMouseLeave={(e) => e.currentTarget.style.color = '#666'}
+                                        >
+                                            <ChevronsDown size={14} />
+                                        </button>
+                                    </div>
+                                </div>
                                 <div className={styles.tocList}>
                                     {(() => {
                                         const visibleStack: { level: number, collapsed: boolean, id: string }[] = [];

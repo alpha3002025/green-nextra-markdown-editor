@@ -201,35 +201,114 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         }
 
         if (req.method === 'DELETE') {
-            const { path: targetPath } = req.body
-            if (!targetPath) return res.status(400).json({ error: 'Missing parameters' })
+            const { path: targetPath } = req.body;
+            if (!targetPath) return res.status(400).json({ error: 'Missing parameters' });
 
-            const p = helpers.getSafePath(targetPath)
-            if (!fs.existsSync(p)) return res.status(404).json({ error: 'Not found' })
+            const p = helpers.getSafePath(targetPath);
+            const relativePath = path.relative(PAGES_DIR, p);
 
-            const stats = fs.statSync(p)
-            if (stats.isDirectory()) {
-                fs.rmSync(p, { recursive: true, force: true })
-            } else {
-                fs.unlinkSync(p)
+            // Trash Directory Logic
+            const trashDir = path.join(process.cwd(), '.trash');
+            if (!fs.existsSync(trashDir)) fs.mkdirSync(trashDir);
 
-                // Remove associated image folder if it exists
-                if (/\.(md|mdx)$/.test(p)) {
+            // Create a unique trash name: timestamp_originalName
+            const timestamp = Date.now();
+            const trashName = `${timestamp}_${path.basename(p)}`;
+            const trashPath = path.join(trashDir, trashName);
+
+            // Store metadata for restore
+            const metaFile = path.join(trashDir, `${trashName}.meta.json`);
+
+            interface TrashMetaData {
+                originalPath: string;
+                trashName: string;
+                timestamp: number;
+                imageTrashName?: string;
+                originalImagePath?: string;
+            }
+
+            const metaData: TrashMetaData = { originalPath: relativePath, trashName, timestamp };
+
+            try {
+                if (!fs.existsSync(p)) return res.status(404).json({ error: 'Not found' });
+
+                // Move file/folder to trash
+                fs.renameSync(p, trashPath);
+                fs.writeFileSync(metaFile, JSON.stringify(metaData));
+
+                // Handle associated images (only for files)
+                // If it's a markdown file, check for img folder
+                if (!fs.statSync(trashPath).isDirectory() && /\.(md|mdx)$/.test(p)) {
                     const ext = path.extname(p);
                     const name = path.basename(p, ext);
                     const dir = path.dirname(p);
+                    // Image dir is typically sibling to file: ./img/{name}
+                    // Or inside the same dir if index? No, usually ./img/{name} relative to file
+                    // Just check standard pattern
                     const imgDir = path.join(dir, 'img', name);
 
                     if (fs.existsSync(imgDir)) {
-                        try {
-                            fs.rmSync(imgDir, { recursive: true, force: true });
-                        } catch (imgErr) {
-                            console.error('Failed to remove image directory:', imgErr);
-                        }
+                        const trashImgName = `${timestamp}_${name}_img`;
+                        const trashImgPath = path.join(trashDir, trashImgName);
+                        fs.renameSync(imgDir, trashImgPath);
+
+                        // Update metadata to include image path
+                        metaData['imageTrashName'] = trashImgName;
+                        metaData['originalImagePath'] = path.relative(PAGES_DIR, imgDir);
+                        fs.writeFileSync(metaFile, JSON.stringify(metaData));
                     }
                 }
+
+                return res.status(200).json({ success: true, trashId: trashName });
+            } catch (e: any) {
+                console.error(e);
+                return res.status(500).json({ error: 'Failed to move to trash' });
             }
-            return res.status(200).json({ success: true })
+        }
+
+        if (req.method === 'POST' && req.body.type === 'restore') {
+            const { trashId } = req.body;
+            if (!trashId) return res.status(400).json({ error: 'Missing trashId' });
+
+            const trashDir = path.join(process.cwd(), '.trash');
+            const metaFile = path.join(trashDir, `${trashId}.meta.json`);
+
+            if (!fs.existsSync(metaFile)) return res.status(404).json({ error: 'Trash record not found' });
+
+            try {
+                const metaData = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
+                const originalPath = path.join(PAGES_DIR, metaData.originalPath);
+                const trashPath = path.join(trashDir, metaData.trashName);
+
+                // Check if target location is occupied
+                if (fs.existsSync(originalPath)) {
+                    return res.status(409).json({ error: 'Restore location is occupied' });
+                }
+
+                // Restore main file/folder
+                // Ensure parent dir exists
+                fs.mkdirSync(path.dirname(originalPath), { recursive: true });
+                fs.renameSync(trashPath, originalPath);
+
+                // Restore images if any
+                if (metaData.imageTrashName && metaData.originalImagePath) {
+                    const originalImgPath = path.join(PAGES_DIR, metaData.originalImagePath);
+                    const trashImgPath = path.join(trashDir, metaData.imageTrashName);
+
+                    if (fs.existsSync(trashImgPath)) {
+                        fs.mkdirSync(path.dirname(originalImgPath), { recursive: true });
+                        fs.renameSync(trashImgPath, originalImgPath);
+                    }
+                }
+
+                // Cleanup meta
+                fs.unlinkSync(metaFile);
+
+                return res.status(200).json({ success: true });
+            } catch (e) {
+                console.error(e);
+                return res.status(500).json({ error: 'Restore failed' });
+            }
         }
 
     } catch (e: any) {
