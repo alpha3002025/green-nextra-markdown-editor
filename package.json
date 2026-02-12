@@ -1,6 +1,6 @@
 {
   "name": "green-nextra-markdown-editor",
-  "version": "v20260212-12",
+  "version": "v20260212-13",
   "private": true,
   "scripts": {
     "dev": "next dev",
