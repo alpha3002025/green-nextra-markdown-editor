@@ -8,6 +8,7 @@ const withNextra = require('nextra')({
 const { SITE_CONFIG } = require('./site.config')
 
 const isProd = process.env.NODE_ENV === 'production'
+const isVercel = process.env.VERCEL === '1'
 
 module.exports = withNextra({
     reactStrictMode: false,
@@ -15,5 +16,5 @@ module.exports = withNextra({
     images: {
         unoptimized: true
     },
-    basePath: isProd ? SITE_CONFIG.basePath : '',
+    basePath: (isProd && !isVercel) ? SITE_CONFIG.basePath : '',
 })
