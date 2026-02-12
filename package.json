@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && node copy-images.js",
+    "build": "next build",
+    "build-pages": "next build && node copy-images.js",
     "start": "next start",
     "lint": "eslint"
   },
