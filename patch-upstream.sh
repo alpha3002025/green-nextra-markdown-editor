@@ -20,7 +20,7 @@ cp -a upstream/copy-images.js copy-images.js
 
 ## Copy files from upstream (scripts)
 cp -a upstream/update-from-release.sh update-from-release.sh
-cp -a upstream/update-from-specific-release.sh update-from-specific-release.sh
+cp -a upstream/update-from-specific-version.sh update-from-specific-version.sh
 cp -a upstream/patch-upstream.sh patch-upstream.sh
 
 rm -rf upstream
