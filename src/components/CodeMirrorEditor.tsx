@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, forwardRef } from 'react';
 import CodeMirror, { ReactCodeMirrorProps, EditorView, Extension, ReactCodeMirrorRef, ViewPlugin, Decoration, DecorationSet, ViewUpdate } from '@uiw/react-codemirror';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
-import { EditorState, Transaction, Range } from '@codemirror/state';
+import { EditorState, Transaction, Range, EditorSelection } from '@codemirror/state';
 import { keymap, KeyBinding } from '@codemirror/view';
 import { HighlightStyle, syntaxHighlighting, indentUnit, syntaxTree } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
@@ -165,6 +165,29 @@ const CodeMirrorEditor = forwardRef<ReactCodeMirrorRef, CodeMirrorEditorProps>((
                     }
                 }
             }
+        },
+        mousedown(event, view) {
+            // Handle Alt+Click (Option+Click) to add cursors (VS Code style)
+            if (event.altKey && event.button === 0) {
+                const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+                if (pos !== null) {
+                    event.preventDefault(); // Prevent default text selection or browser action
+
+                    const selection = view.state.selection;
+                    // Create a cursor range at the clicked position
+                    const newRange = EditorSelection.cursor(pos);
+
+                    // Add the new range to the existing selection
+                    const newSelection = selection.addRange(newRange);
+
+                    view.dispatch({
+                        selection: newSelection,
+                        userEvent: "select.pointer"
+                    });
+
+                    view.focus();
+                }
+            }
         }
     }), [onImageUpload]);
 
@@ -180,6 +203,71 @@ const CodeMirrorEditor = forwardRef<ReactCodeMirrorRef, CodeMirrorEditorProps>((
         { key: "Alt-ArrowDown", run: moveLineDown },
         { key: "Shift-Alt-ArrowUp", run: copyLineUp },
         { key: "Shift-Alt-ArrowDown", run: copyLineDown },
+        // Header Level Adjustment
+        {
+            key: "Ctrl-Alt-ArrowRight",
+            run: (view) => {
+                const { state, dispatch } = view;
+                const { from } = state.selection.main;
+                const line = state.doc.lineAt(from);
+                const text = line.text;
+                const match = text.match(/^(#{1,6})\s/);
+
+                if (match) {
+                    if (match[1].length < 6) {
+                        dispatch({
+                            changes: { from: line.from, insert: "#" },
+                            selection: { anchor: state.selection.main.anchor + 1, head: state.selection.main.head + 1 }
+                        });
+                        return true;
+                    }
+                } else {
+                    dispatch({
+                        changes: { from: line.from, insert: "# " },
+                        selection: { anchor: state.selection.main.anchor + 2, head: state.selection.main.head + 2 }
+                    });
+                    return true;
+                }
+                return false;
+            },
+            preventDefault: true
+        },
+        {
+            key: "Ctrl-Alt-ArrowLeft",
+            run: (view) => {
+                const { state, dispatch } = view;
+                const { from } = state.selection.main;
+                const line = state.doc.lineAt(from);
+                const text = line.text;
+                const match = text.match(/^(#{1,6})\s/);
+
+                if (match) {
+                    const level = match[1].length;
+                    if (level > 1) {
+                        const anchor = Math.max(line.from, state.selection.main.anchor - 1);
+                        const head = Math.max(line.from, state.selection.main.head - 1);
+
+                        dispatch({
+                            changes: { from: line.from, to: line.from + 1, insert: "" },
+                            selection: { anchor, head }
+                        });
+                        return true;
+                    } else {
+                        // level 1, remove "# " (2 chars)
+                        const anchor = Math.max(line.from, state.selection.main.anchor - 2);
+                        const head = Math.max(line.from, state.selection.main.head - 2);
+
+                        dispatch({
+                            changes: { from: line.from, to: line.from + 2, insert: "" },
+                            selection: { anchor, head }
+                        });
+                        return true;
+                    }
+                }
+                return false;
+            },
+            preventDefault: true
+        },
         // Case Toggle (Mod-Shift-U)
         {
             key: "Mod-Shift-u",
@@ -353,6 +441,7 @@ const CodeMirrorEditor = forwardRef<ReactCodeMirrorRef, CodeMirrorEditorProps>((
                 lineNumbers: true,
                 foldGutter: true,
                 highlightActiveLine: true,
+                allowMultipleSelections: true, // Enable multi-cursor support
                 // history: true, // enabled by default in basicSetup
             }}
         />
