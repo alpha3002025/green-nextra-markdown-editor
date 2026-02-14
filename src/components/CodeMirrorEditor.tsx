@@ -167,26 +167,87 @@ const CodeMirrorEditor = forwardRef<ReactCodeMirrorRef, CodeMirrorEditorProps>((
             }
         },
         mousedown(event, view) {
-            // Handle Alt+Click (Option+Click) to add cursors (VS Code style)
+            // Handle Alt+Click for multi-cursor and Alt+Drag for vertical selection
             if (event.altKey && event.button === 0) {
-                const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
-                if (pos !== null) {
-                    event.preventDefault(); // Prevent default text selection or browser action
+                event.preventDefault(); // Prevent default text selection
 
-                    const selection = view.state.selection;
-                    // Create a cursor range at the clicked position
-                    const newRange = EditorSelection.cursor(pos);
+                const startPosCoords = view.posAtCoords({ x: event.clientX, y: event.clientY });
+                if (startPosCoords === null) return;
 
-                    // Add the new range to the existing selection
-                    const newSelection = selection.addRange(newRange);
+                const startPos = startPosCoords;
+
+                // Initial snapshot of selection before drag starts
+                const initialSelection = view.state.selection;
+
+                // TOGGLE LOGIC: Check if we are clicking on an existing cursor
+                const ranges = initialSelection.ranges.slice();
+                const existingIdx = ranges.findIndex(r => r.head === startPos && r.empty);
+
+                if (existingIdx !== -1) {
+                    // Cursor exists here, remove it (if more than one remains)
+                    if (ranges.length > 1) {
+                        ranges.splice(existingIdx, 1);
+                        const newSelection = EditorSelection.create(ranges);
+                        view.dispatch({
+                            selection: newSelection,
+                            userEvent: "select.pointer"
+                        });
+                        view.focus();
+                        return; // Stop here, don't drag if removed
+                    }
+                }
+
+                // Immediately add a cursor at the clicked position
+                // This covers the single click case too
+                const newRange = EditorSelection.cursor(startPos);
+                const selectionWithClick = initialSelection.addRange(newRange);
+
+                view.dispatch({
+                    selection: selectionWithClick,
+                    userEvent: "select.pointer"
+                });
+                view.focus();
+
+                // Calculate column offset for vertical alignment
+                const startLineBlock = view.lineBlockAt(startPos);
+                const startOff = startPos - startLineBlock.from;
+                const startLineNum = view.state.doc.lineAt(startPos).number;
+
+                const onMouseMove = (moveEvent: MouseEvent) => {
+                    const currentPos = view.posAtCoords({ x: moveEvent.clientX, y: moveEvent.clientY });
+                    if (currentPos === null) return;
+
+                    const endLineNum = view.state.doc.lineAt(currentPos).number;
+                    const minLine = Math.min(startLineNum, endLineNum);
+                    const maxLine = Math.max(startLineNum, endLineNum);
+
+                    // Start with the selection from BEFORE the drag (to avoid accumulating duplicates incorrectly)
+                    // But wait, if we want to "add" to existing multi-cursors, we should use initialSelection.
+                    let ranges: any[] = initialSelection.ranges.slice();
+
+                    for (let l = minLine; l <= maxLine; l++) {
+                        const line = view.state.doc.line(l);
+                        // Vertical column logic: try to use same char offset
+                        const pos = Math.min(line.from + startOff, line.to);
+                        ranges.push(EditorSelection.cursor(pos));
+                    }
+
+                    // Create new selection (merged/sorted)
+                    const nextSelection = EditorSelection.create(ranges);
 
                     view.dispatch({
-                        selection: newSelection,
+                        selection: nextSelection,
                         userEvent: "select.pointer"
                     });
+                };
 
-                    view.focus();
-                }
+                const onMouseUp = () => {
+                    window.removeEventListener('mousemove', onMouseMove);
+                    window.removeEventListener('mouseup', onMouseUp);
+                };
+
+                window.addEventListener('mousemove', onMouseMove);
+                window.addEventListener('mouseup', onMouseUp);
             }
         }
     }), [onImageUpload]);
@@ -272,21 +333,22 @@ const CodeMirrorEditor = forwardRef<ReactCodeMirrorRef, CodeMirrorEditorProps>((
         {
             key: "Mod-Shift-u",
             run: (view) => {
-                const range = view.state.selection.main;
-                if (range.empty) return false;
+                const transaction = view.state.changeByRange(range => {
+                    if (range.empty) return { range };
 
-                const from = range.from;
-                const to = range.to;
-                const text = view.state.sliceDoc(from, to);
-                if (!text) return false;
+                    const text = view.state.sliceDoc(range.from, range.to);
+                    if (!text) return { range };
 
-                const isAllUpper = text === text.toUpperCase();
-                const newText = isAllUpper ? text.toLowerCase() : text.toUpperCase();
+                    const isAllUpper = text === text.toUpperCase();
+                    const newText = isAllUpper ? text.toLowerCase() : text.toUpperCase();
 
-                view.dispatch({
-                    changes: { from, to, insert: newText },
-                    selection: { anchor: from, head: from + newText.length }
+                    return {
+                        changes: { from: range.from, to: range.to, insert: newText },
+                        range: EditorSelection.range(range.from, range.from + newText.length)
+                    };
                 });
+
+                view.dispatch(transaction);
                 return true;
             },
             preventDefault: true
