@@ -304,26 +304,28 @@ const FileTreeItem = ({
                 <span style={{ marginLeft: 8, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</span>
 
                 {/* @ Copy Button */}
-                <button
-                    onClick={handleCliCopy}
-                    style={{
-                        opacity: isHovered ? 1 : 0,
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        padding: '2px',
-                        marginLeft: '4px',
-                        color: '#aaa',
-                        transition: 'opacity 0.2s',
-                        display: 'flex',
-                        alignItems: 'center'
-                    }}
-                    title="Copy path for CLI"
-                    onMouseEnter={(e) => e.currentTarget.style.color = '#42b883'}
-                    onMouseLeave={(e) => e.currentTarget.style.color = '#aaa'}
-                >
-                    <AtSign size={14} />
-                </button>
+                {process.env.NODE_ENV === 'development' && (
+                    <button
+                        onClick={handleCliCopy}
+                        style={{
+                            opacity: isHovered ? 1 : 0,
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            padding: '2px',
+                            marginLeft: '4px',
+                            color: '#aaa',
+                            transition: 'opacity 0.2s',
+                            display: 'flex',
+                            alignItems: 'center'
+                        }}
+                        title="Copy path for CLI"
+                        onMouseEnter={(e) => e.currentTarget.style.color = '#42b883'}
+                        onMouseLeave={(e) => e.currentTarget.style.color = '#aaa'}
+                    >
+                        <AtSign size={14} />
+                    </button>
+                )}
                 {process.env.NODE_ENV === 'development' && (
                     <button
                         onClick={(e) => {
