@@ -56,30 +56,31 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
             }
 
             for (const item of items) {
-                if (exclude.includes(item.name)) continue
+                const name = item.name.normalize('NFC')
+                if (exclude.includes(name)) continue
 
                 if (item.isDirectory()) {
-                    const childRelativePath = relativePath ? path.join(relativePath, item.name) : item.name
-                    const children = buildTree(path.join(dir, item.name), childRelativePath)
+                    const childRelativePath = relativePath ? path.join(relativePath, name) : name
+                    const children = buildTree(path.join(dir, name), childRelativePath)
                     nodes.push({
-                        name: item.name,
+                        name: name,
                         type: 'directory',
                         path: childRelativePath,
                         children
                     })
-                } else if (/\.(md|mdx|json)$/.test(item.name)) {
+                } else if (/\.(md|mdx|json)$/.test(name)) {
                     let slug = relativePath
-                    if (item.name === 'index.md' || item.name === 'index.mdx') {
+                    if (name === 'index.md' || name === 'index.mdx') {
                         slug = relativePath || 'home'
                     } else {
-                        slug = relativePath ? path.join(relativePath, item.name) : item.name
+                        slug = relativePath ? path.join(relativePath, name) : name
                     }
 
                     nodes.push({
-                        name: item.name,
+                        name: name,
                         type: 'file',
                         slug: slug,
-                        path: relativePath ? path.join(relativePath, item.name) : item.name
+                        path: relativePath ? path.join(relativePath, name) : name
                     })
                 }
             }
@@ -115,7 +116,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method === 'POST') {
         const { title } = req.body
         if (!title) return res.status(400).json({ error: 'Title required' })
-        const slug = title.toLowerCase().replace(/ /g, '-').replace(/[^\w-]/g, '')
+        const slug = title.trim().replace(/\s+/g, '-').replace(/[^\w\-\uAC00-\uD7A3]+/g, '')
 
         const dir = path.join(PAGES_DIR, slug)
 
