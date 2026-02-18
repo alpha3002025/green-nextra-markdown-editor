@@ -155,3 +155,31 @@ pre code,
   border-color: #42b883;
   background-color: #1a1a1a;
 }
+
+/* Fix Inconsistent List Spacing in Viewer */
+/* Targets Nextra's prose classes to enforce tighter spacing in lists */
+.nx-prose li>p,
+.prose li>p,
+.nextra-content li>p {
+  margin-top: 0.8em !important;
+  margin-bottom: 0.8em !important;
+  line-height: 1.7 !important;
+}
+
+.nx-content li,
+.prose li,
+.nextra-content li {
+  margin-top: 0.8em !important;
+  margin-bottom: 0.8em !important;
+  line-height: 1.7 !important;
+}
+
+.nx-prose li>ul,
+.nx-prose li>ol,
+.prose li>ul,
+.prose li>ol,
+.nextra-content li>ul,
+.nextra-content li>ol {
+  margin-top: 0.8em !important;
+  margin-bottom: 0.8em !important;
+}

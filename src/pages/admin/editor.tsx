@@ -384,6 +384,49 @@ const FileTreeItem = ({
     )
 }
 
+// Trash List Component
+function TrashListModal({ isOpen, items, onClose, onRestore }: { isOpen: boolean, items: any[], onClose: () => void, onRestore: (id: string) => void }) {
+    if (!isOpen) return null;
+    return (
+        <div className={styles.modalOverlay} onMouseDown={onClose}>
+            <div className={styles.modal} style={{ maxWidth: '600px', width: '90%' }} onMouseDown={(e) => e.stopPropagation()}>
+                <div className={styles.modalHeader}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Trash size={20} /> Trash Bin</span>
+                    <button onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#666' }}><X size={20} /></button>
+                </div>
+                <div className={styles.modalBody} style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                    {items.length === 0 ? <p style={{ color: '#888', textAlign: 'center', padding: '2rem' }}>Trash is empty</p> : (
+                        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                            {items.map(item => (
+                                <li key={item.trashName} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', borderBottom: '1px solid #eee' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <span style={{ fontWeight: 500, fontSize: '0.95rem' }}>{item.originalPath}</span>
+                                        <span style={{ fontSize: '0.8rem', color: '#888' }}>
+                                            {new Date(item.timestamp).toLocaleString()}
+                                            {item.originalMetaValue ? ` • Meta: ${item.originalMetaValue}` : ''}
+                                        </span>
+                                    </div>
+                                    <button
+                                        onClick={() => onRestore(item.trashName)}
+                                        className={styles.modalBtn}
+                                        style={{ backgroundColor: '#42b883', color: 'white', padding: '6px 12px', fontSize: '0.85rem' }}
+                                        title="Restore this file"
+                                    >
+                                        <Recycle size={14} style={{ marginRight: '4px' }} /> Restore
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+                <div className={styles.modalFooter}>
+                    <button className={`${styles.modalBtn} ${styles.modalBtnSecondary}`} onClick={onClose}>Close</button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // Modal Component
 function Modal({ isOpen, type, title, message, defaultValue, onClose }: {
     isOpen: boolean,
@@ -542,7 +585,12 @@ export default function Editor() {
     const [draggedNode, setDraggedNode] = useState<FileNode | null>(null);
     const [draggedHeaderIndex, setDraggedHeaderIndex] = useState<number | null>(null);
     const [dragOverHeaderIndex, setDragOverHeaderIndex] = useState<number | null>(null);
+
     const [dragHeaderPosition, setDragHeaderPosition] = useState<'top' | 'bottom' | null>(null);
+
+    // Trash State
+    const [isTrashOpen, setIsTrashOpen] = useState(false);
+    const [trashItems, setTrashItems] = useState<any[]>([]);
 
     // --- Refs ---
     const contentRef = useRef('')
@@ -661,6 +709,46 @@ export default function Editor() {
             console.error(e)
         }
     }
+
+    const fetchTrashItems = async () => {
+        try {
+            const res = await fetch('/api/fs?type=trash');
+            if (res.ok) {
+                const data = await res.json();
+                setTrashItems(data.items || []);
+                setIsTrashOpen(true);
+            }
+        } catch (e) {
+            console.error(e);
+            window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Failed to fetch trash' }));
+        }
+    };
+
+    const handleRestore = async (trashId: string) => {
+        try {
+            const res = await fetch('/api/fs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'restore', trashId })
+            });
+
+            if (res.ok) {
+                window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Restored successfully' }));
+                fetchTrashItems(); // Refresh trash list
+                fetchPosts(); // Refresh file explorer
+                if (currentPost && currentPost.endsWith('_meta.json')) {
+                    loadPost(currentPost);
+                }
+            } else {
+                const data = await res.json();
+                window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Error: ' + (data.error || 'Restore failed') }));
+            }
+        } catch (e) {
+            console.error(e);
+            window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Restore failed' }));
+        }
+    };
+
 
     const loadPost = async (slug: string) => {
         setStatus('Loading...')
@@ -1353,6 +1441,9 @@ export default function Editor() {
                                         if (restoreRes.ok) {
                                             window.dispatchEvent(new CustomEvent('show-toast', { detail: 'Restored successfully' }));
                                             await fetchPosts();
+                                            if (currentPost && currentPost.endsWith('_meta.json')) {
+                                                loadPost(currentPost);
+                                            }
                                             undoToast.remove();
                                         } else {
                                             alert('Failed to restore');
@@ -1383,6 +1474,9 @@ export default function Editor() {
                 }
 
                 await fetchPosts();
+                if (currentPost && currentPost.endsWith('_meta.json')) {
+                    loadPost(currentPost);
+                }
                 setSelectedPaths(new Set());
             } else if (action === 'duplicate') {
                 setIsDuplicating(true);
@@ -1586,6 +1680,7 @@ export default function Editor() {
 
             <Toast message={toastMsg} />
             <Modal {...modalConfig} onClose={handleModalClose} />
+            <TrashListModal isOpen={isTrashOpen} items={trashItems} onClose={() => setIsTrashOpen(false)} onRestore={handleRestore} />
 
             {/* Sidebar */}
             {isDuplicating && (
@@ -1631,6 +1726,15 @@ export default function Editor() {
                             onMouseLeave={(e) => e.currentTarget.style.color = '#666'}
                         >
                             <ChevronsDown size={16} />
+                        </button>
+                        <button
+                            onClick={fetchTrashItems}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: '2px', display: 'flex', marginLeft: '4px' }}
+                            title="Open Trash"
+                            onMouseEnter={(e) => e.currentTarget.style.color = '#e53e3e'}
+                            onMouseLeave={(e) => e.currentTarget.style.color = '#666'}
+                        >
+                            <Trash size={16} />
                         </button>
                     </div>
                 </div>

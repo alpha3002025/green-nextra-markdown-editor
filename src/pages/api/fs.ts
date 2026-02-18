@@ -20,7 +20,105 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     try {
+        if (req.method === 'GET') {
+            const { type } = req.query;
+            if (type === 'trash') {
+                const trashDir = path.join(process.cwd(), '.trash');
+                if (!fs.existsSync(trashDir)) return res.json({ items: [] });
+
+                const files = fs.readdirSync(trashDir);
+                const items = files
+                    .filter(f => f.endsWith('.meta.json'))
+                    .map(f => {
+                        try {
+                            const content = fs.readFileSync(path.join(trashDir, f), 'utf8');
+                            return JSON.parse(content);
+                        } catch (e) {
+                            return null;
+                        }
+                    })
+                    .filter(item => item !== null)
+                    .sort((a, b) => b.timestamp - a.timestamp); // Newest first
+
+                return res.status(200).json({ items });
+            }
+        }
+
+
+        if (req.method === 'POST' && req.body.type === 'restore') {
+            const { trashId } = req.body;
+            if (!trashId) return res.status(400).json({ error: 'Missing trashId' });
+
+            const trashDir = path.join(process.cwd(), '.trash');
+            const metaFile = path.join(trashDir, `${trashId}.meta.json`);
+
+            if (!fs.existsSync(metaFile)) return res.status(404).json({ error: 'Trash record not found' });
+
+            try {
+                const metaData = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
+
+                const pLocal = path.join(PAGES_DIR, metaData.originalPath);
+                if (!pLocal.startsWith(PAGES_DIR)) throw new Error('Invalid path in metadata');
+
+                const originalPath = pLocal;
+                const trashPath = path.join(trashDir, metaData.trashName);
+
+                if (fs.existsSync(originalPath)) {
+                    return res.status(409).json({ error: 'Restore location is occupied' });
+                }
+
+                fs.mkdirSync(path.dirname(originalPath), { recursive: true });
+                if (fs.existsSync(trashPath)) {
+                    fs.renameSync(trashPath, originalPath);
+                } else {
+                    return res.status(404).json({ error: 'Trashed file not found on disk' });
+                }
+
+                // Restore images
+                if (metaData.imageTrashName && metaData.originalImagePath) {
+                    const originalImgPath = path.join(PAGES_DIR, metaData.originalImagePath);
+                    const trashImgPath = path.join(trashDir, metaData.imageTrashName);
+                    if (fs.existsSync(trashImgPath)) {
+                        fs.mkdirSync(path.dirname(originalImgPath), { recursive: true });
+                        fs.renameSync(trashImgPath, originalImgPath);
+                    }
+                }
+
+                // Restore _meta.json entry
+                if (metaData.originalMetaValue) {
+                    try {
+                        const parentDir = path.dirname(originalPath);
+                        const metaPath = path.join(parentDir, '_meta.json');
+
+                        let meta: any = {};
+                        if (fs.existsSync(metaPath)) {
+                            meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+                        }
+
+                        // Determine key
+                        const isDir = fs.statSync(originalPath).isDirectory();
+                        let key = path.basename(originalPath);
+                        if (!isDir && /\.(md|mdx)$/.test(originalPath)) {
+                            key = path.basename(originalPath, path.extname(originalPath));
+                        }
+
+                        meta[key] = metaData.originalMetaValue;
+                        fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
+                    } catch (e) {
+                        console.error('Failed to restore meta:', e);
+                    }
+                }
+
+                fs.unlinkSync(metaFile);
+                return res.status(200).json({ success: true });
+            } catch (e: any) {
+                console.error(e);
+                return res.status(500).json({ error: 'Restore failed', details: e.toString() });
+            }
+        }
+
         if (req.method === 'POST') {
+            // ... existing POST logic
             const { type, path: targetPath } = req.body
             if (!targetPath || !type) return res.status(400).json({ error: 'Missing parameters' })
 
@@ -205,6 +303,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
             if (!targetPath) return res.status(400).json({ error: 'Missing parameters' });
 
             const p = helpers.getSafePath(targetPath);
+
             const relativePath = path.relative(PAGES_DIR, p);
 
             // Trash Directory Logic
@@ -225,16 +324,45 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
                 timestamp: number;
                 imageTrashName?: string;
                 originalImagePath?: string;
+                originalMetaValue?: any;
             }
 
             const metaData: TrashMetaData = { originalPath: relativePath, trashName, timestamp };
 
             try {
-                if (!fs.existsSync(p)) return res.status(404).json({ error: 'Not found' });
+                if (!fs.existsSync(p)) return res.status(404).json({ error: 'Not found', path: p, cwd: process.cwd() });
 
                 // Move file/folder to trash
                 fs.renameSync(p, trashPath);
                 fs.writeFileSync(metaFile, JSON.stringify(metaData));
+
+                // Update _meta.json
+                try {
+                    const parentDir = path.dirname(p);
+                    const metaPath = path.join(parentDir, '_meta.json');
+                    if (fs.existsSync(metaPath)) {
+                        const metaContent = fs.readFileSync(metaPath, 'utf8');
+                        const meta = JSON.parse(metaContent);
+
+                        // Determine key
+                        const isDir = fs.statSync(trashPath).isDirectory();
+                        let key = path.basename(p);
+                        if (!isDir && /\.(md|mdx)$/.test(p)) {
+                            key = path.basename(p, path.extname(p));
+                        }
+
+                        if (meta[key]) {
+                            // Save original meta value to trash metadata
+                            metaData.originalMetaValue = meta[key];
+                            fs.writeFileSync(metaFile, JSON.stringify(metaData));
+
+                            delete meta[key];
+                            fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
+                        }
+                    }
+                } catch (metaErr) {
+                    console.error('Error updating _meta.json:', metaErr);
+                }
 
                 // Handle associated images (only for files)
                 // If it's a markdown file, check for img folder
@@ -263,51 +391,6 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
             } catch (e: any) {
                 console.error(e);
                 return res.status(500).json({ error: 'Failed to move to trash' });
-            }
-        }
-
-        if (req.method === 'POST' && req.body.type === 'restore') {
-            const { trashId } = req.body;
-            if (!trashId) return res.status(400).json({ error: 'Missing trashId' });
-
-            const trashDir = path.join(process.cwd(), '.trash');
-            const metaFile = path.join(trashDir, `${trashId}.meta.json`);
-
-            if (!fs.existsSync(metaFile)) return res.status(404).json({ error: 'Trash record not found' });
-
-            try {
-                const metaData = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
-                const originalPath = path.join(PAGES_DIR, metaData.originalPath);
-                const trashPath = path.join(trashDir, metaData.trashName);
-
-                // Check if target location is occupied
-                if (fs.existsSync(originalPath)) {
-                    return res.status(409).json({ error: 'Restore location is occupied' });
-                }
-
-                // Restore main file/folder
-                // Ensure parent dir exists
-                fs.mkdirSync(path.dirname(originalPath), { recursive: true });
-                fs.renameSync(trashPath, originalPath);
-
-                // Restore images if any
-                if (metaData.imageTrashName && metaData.originalImagePath) {
-                    const originalImgPath = path.join(PAGES_DIR, metaData.originalImagePath);
-                    const trashImgPath = path.join(trashDir, metaData.imageTrashName);
-
-                    if (fs.existsSync(trashImgPath)) {
-                        fs.mkdirSync(path.dirname(originalImgPath), { recursive: true });
-                        fs.renameSync(trashImgPath, originalImgPath);
-                    }
-                }
-
-                // Cleanup meta
-                fs.unlinkSync(metaFile);
-
-                return res.status(200).json({ success: true });
-            } catch (e) {
-                console.error(e);
-                return res.status(500).json({ error: 'Restore failed' });
             }
         }
 
