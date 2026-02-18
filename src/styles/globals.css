@@ -2,6 +2,14 @@
   /* Vue Green */
   --nextra-primary-hue: 153deg;
   --nextra-primary-saturation: 47%;
+
+  /* Sidebar Layout */
+  --nextra-sidebar-width: 290px;
+}
+
+/* Ensure sidebar bottom is not cut off */
+aside[class*="sidebar"] {
+  padding-bottom: 80px !important;
 }
 
 
