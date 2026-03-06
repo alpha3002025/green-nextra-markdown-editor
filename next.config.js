@@ -2,7 +2,6 @@ const withNextra = require('nextra')({
     theme: 'nextra-theme-docs',
     themeConfig: './theme.config.tsx',
     latex: true,
-    staticImage: false,
 })
 
 const { SITE_CONFIG } = require('./site.config')

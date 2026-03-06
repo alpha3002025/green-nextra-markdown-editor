@@ -403,7 +403,7 @@ function SafeImage(props: any) {
   const [error, setError] = useState(false);
   const router = useRouter();
 
-  let src = props.src;
+  let src = typeof props.src === 'string' ? props.src : props.src?.src || '';
   const basePath = SITE_CONFIG.basePath || '';
 
   // Fix for GitHub Pages (Production):
